@@ -4,33 +4,38 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/azuyamat/ctf/internal/challenge"
-	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/app"
 	"github.com/azuyamat/ctf/internal/fsutil"
-	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/gear/command"
 )
 
-func Root(version string) *command.RootCommand {
+type cli struct {
+	*app.App
+}
+
+func Root(a *app.App) *command.RootCommand {
+	c := &cli{a}
 	return command.NewRootCommand("ctf", "Manage CTF challenges effortlessly").
-		AddChild(cmdNew()).
-		AddChild(cmdEvent()).
-		AddChild(cmdLast()).
-		AddChild(cmdTemplates()).
-		AddChild(cmdFlag()).
-		AddChild(cmdLs()).
-		AddChild(cmdConfig()).
-		AddChild(cmdGrab()).
-		AddChild(cmdOpen()).
-		AddChild(cmdVersion(version))
+		AddChild(c.cmdNew()).
+		AddChild(c.cmdEvent()).
+		AddChild(c.cmdLast()).
+		AddChild(c.cmdTemplates()).
+		AddChild(c.cmdFlag()).
+		AddChild(c.cmdLs()).
+		AddChild(c.cmdInfo()).
+		AddChild(c.cmdConfig()).
+		AddChild(c.cmdGrab()).
+		AddChild(c.cmdOpen()).
+		AddChild(c.cmdLogin()).
+		AddChild(c.cmdLogout()).
+		AddChild(c.cmdPull()).
+		AddChild(c.cmdHint()).
+		AddChild(c.cmdSubmit()).
+		AddChild(cmdVersion(a.Version))
 }
 
-func challengeRoot() string {
-	return challenge.Root(config.Current.BaseDir, state.Current.Event)
-}
-
-func shortPath(path string) string {
-	if rel, ok := fsutil.Within(config.Current.BaseDir, path); ok {
+func (c *cli) shortPath(path string) string {
+	if rel, ok := fsutil.Within(c.Config.BaseDir, path); ok {
 		return rel
 	}
 	if home, err := os.UserHomeDir(); err == nil {

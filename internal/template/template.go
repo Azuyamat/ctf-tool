@@ -11,10 +11,10 @@ import (
 	texttemplate "text/template"
 
 	"github.com/azuyamat/ctf/internal/fsutil"
+	"github.com/azuyamat/ctf/internal/layout"
 )
 
 const (
-	DirName = "templates"
 	Default = "default"
 	Ext     = ".tmpl"
 
@@ -36,29 +36,21 @@ type source struct {
 	dir   string
 }
 
-func GlobalDir(base string) string {
-	return filepath.Join(base, DirName)
-}
-
-func EventDir(base, event string) string {
-	return filepath.Join(base, event, DirName)
-}
-
 // sources returns template directories in lookup order, event first.
-func sources(base, event string) []source {
+func sources(l layout.Layout, event string) []source {
 	var srcs []source
 	if event != "" {
-		srcs = append(srcs, source{scope: ScopeEvent, dir: EventDir(base, event)})
+		srcs = append(srcs, source{scope: ScopeEvent, dir: l.EventTemplatesDir(event)})
 	}
-	return append(srcs, source{scope: ScopeGlobal, dir: GlobalDir(base)})
+	return append(srcs, source{scope: ScopeGlobal, dir: l.GlobalTemplatesDir()})
 }
 
-func Find(base, event, name string) (*Template, error) {
+func Find(l layout.Layout, event, name string) (*Template, error) {
 	if !fsutil.ValidName(name) {
 		return nil, fmt.Errorf("invalid template name: %s", name)
 	}
 
-	for _, src := range sources(base, event) {
+	for _, src := range sources(l, event) {
 		path := filepath.Join(src.dir, name)
 		info, err := os.Stat(path)
 		if errors.Is(err, fs.ErrNotExist) {
@@ -75,10 +67,10 @@ func Find(base, event, name string) (*Template, error) {
 }
 
 // List returns all templates in lookup order, marking those shadowed by an earlier source.
-func List(base, event string) ([]Template, error) {
+func List(l layout.Layout, event string) ([]Template, error) {
 	seen := make(map[string]bool)
 	var templates []Template
-	for _, src := range sources(base, event) {
+	for _, src := range sources(l, event) {
 		entries, err := os.ReadDir(src.dir)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
@@ -103,8 +95,14 @@ func List(base, event string) ([]Template, error) {
 }
 
 type Data struct {
-	Name  string
-	Event string
+	Name       string
+	Event      string
+	Category   string
+	Connection string
+	Host       string
+	Port       string
+	URL        string
+	Points     int
 }
 
 func (t *Template) CopyTo(dst string, data Data) error {

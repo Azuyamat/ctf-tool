@@ -25,6 +25,7 @@ func Bold(s string) string   { return boldStyle.Render(s) }
 func Dim(s string) string    { return dimStyle.Render(s) }
 func Accent(s string) string { return accentStyle.Render(s) }
 func Green(s string) string  { return greenStyle.Render(s) }
+func Red(s string) string    { return redStyle.Render(s) }
 
 func Println(a ...any) {
 	fmt.Fprintln(stdout, a...)
@@ -32,6 +33,10 @@ func Println(a ...any) {
 
 func Successf(format string, a ...any) {
 	fmt.Fprintln(stdout, Green("✓"), fmt.Sprintf(format, a...))
+}
+
+func Promptf(format string, a ...any) {
+	fmt.Fprintf(stderr, format, a...)
 }
 
 func Notef(format string, a ...any) {

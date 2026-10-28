@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -17,7 +16,6 @@ type Config struct {
 	DownloadDir string `json:"downloadDir"`
 }
 
-var Current *Config
 var Keys = []Key{
 	{
 		Name:        "baseDir",
@@ -114,15 +112,10 @@ func LoadOrCreateConfig() (*Config, error) {
 		return nil, err
 	}
 
-	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if err := fsutil.ReadJSON(path, config); errors.Is(err, fs.ErrNotExist) {
 		return config, config.Save()
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read config %s: %w", path, err)
-	}
-	if err := json.Unmarshal(data, config); err != nil {
-		return nil, fmt.Errorf("parse config %s: %w", path, err)
+	} else if err != nil {
+		return nil, fmt.Errorf("read config: %w", err)
 	}
 
 	// Re-set every key so hand-edited values get normalized too.
@@ -139,7 +132,7 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	if err := fsutil.WriteJSON(path, c); err != nil {
+	if err := fsutil.WriteJSON(path, c, 0644); err != nil {
 		return fmt.Errorf("write config %s: %w", path, err)
 	}
 	return nil

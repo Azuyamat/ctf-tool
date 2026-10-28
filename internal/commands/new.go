@@ -5,14 +5,13 @@ import (
 	"fmt"
 
 	"github.com/azuyamat/ctf/internal/challenge"
-	"github.com/azuyamat/ctf/internal/config"
-	"github.com/azuyamat/ctf/internal/state"
+	"github.com/azuyamat/ctf/internal/connection"
 	"github.com/azuyamat/ctf/internal/template"
 	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
-func cmdNew() command.Command {
+func (c *cli) cmdNew() command.Command {
 	return command.NewExecutableCommand("new", "Create a new CTF challenge folder").
 		Args(
 			command.NewStringArg(
@@ -22,45 +21,52 @@ func cmdNew() command.Command {
 		).
 		Flags(
 			command.NewStringFlag("template", "t", "Template to copy into the challenge (default: \"default\" if it exists)", ""),
+			command.NewStringFlag("remote", "r", "Where the challenge runs: host:port, \"nc host port\" or a URL", ""),
 		).
-		Handler(runNew)
+		Handler(c.runNew)
 }
 
-func runNew(ctx *command.Context, args command.ValidatedArgs) error {
-	ch, err := challenge.New(challengeRoot(), args.String("challenge"))
+func (c *cli) runNew(ctx *command.Context, args command.ValidatedArgs) error {
+	ch, err := challenge.New(c.ChallengeRoot(), args.String("challenge"))
 	if err != nil {
 		return err
 	}
 
-	tmpl, err := resolveTemplate(args.FlagString("template"))
+	if remote := args.FlagString("remote"); remote != "" {
+		if connection.Parse(remote).Host == "" {
+			return fmt.Errorf("invalid --remote %q, expected host:port, \"nc host port\" or a URL", remote)
+		}
+		ch.Connection = remote
+	}
+
+	tmpl, err := c.resolveTemplate(args.FlagString("template"))
 	if err != nil {
 		return err
 	}
 
-	data := template.Data{Name: ch.Name, Event: state.Current.Event}
-	if err := ch.Create(tmpl, data); err != nil {
+	if err := ch.Create(tmpl, c.State.Event); err != nil {
 		return err
 	}
 
-	state.Current.LastChallenge = ch.Path
+	c.State.LastChallenge = ch.Path
 
 	detail := ""
 	if tmpl != nil {
 		detail = "  " + ui.Dim(fmt.Sprintf("template %s · %s", tmpl.Name, tmpl.Scope))
 	}
-	ui.Successf("created %s%s", ui.Bold(shortPath(ch.Path)), detail)
+	ui.Successf("created %s%s", ui.Bold(c.shortPath(ch.Path)), detail)
 	return nil
 }
 
 // resolveTemplate finds the named template. With no name it falls back to the
 // default template, returning nil without error if there is none.
-func resolveTemplate(name string) (*template.Template, error) {
-	base, event := config.Current.BaseDir, state.Current.Event
+func (c *cli) resolveTemplate(name string) (*template.Template, error) {
+	l, event := c.Layout(), c.State.Event
 	if name != "" {
-		return template.Find(base, event, name)
+		return template.Find(l, event, name)
 	}
 
-	tmpl, err := template.Find(base, event, template.Default)
+	tmpl, err := template.Find(l, event, template.Default)
 	if errors.Is(err, template.ErrNotFound) {
 		return nil, nil
 	}

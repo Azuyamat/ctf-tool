@@ -1,7 +1,6 @@
 package state
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -13,10 +12,8 @@ import (
 
 type State struct {
 	Event         string `json:"event,omitempty"`
-	LastChallenge string `json:"last_challenge,omitempty"`
+	LastChallenge string `json:"lastChallenge,omitempty"`
 }
-
-var Current *State
 
 func StateFolderPath() (string, error) {
 	if dir := os.Getenv("XDG_STATE_HOME"); filepath.IsAbs(dir) {
@@ -43,17 +40,11 @@ func Load() (*State, error) {
 		return nil, err
 	}
 
-	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return &State{}, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read state %s: %w", path, err)
-	}
-
 	var state State
-	if err := json.Unmarshal(data, &state); err != nil {
-		return nil, fmt.Errorf("parse state %s: %w", path, err)
+	if err := fsutil.ReadJSON(path, &state); errors.Is(err, fs.ErrNotExist) {
+		return &State{}, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("read state: %w", err)
 	}
 	return &state, nil
 }
@@ -63,7 +54,7 @@ func (s *State) Save() error {
 	if err != nil {
 		return err
 	}
-	if err := fsutil.WriteJSON(path, s); err != nil {
+	if err := fsutil.WriteJSON(path, s, 0644); err != nil {
 		return fmt.Errorf("write state %s: %w", path, err)
 	}
 	return nil

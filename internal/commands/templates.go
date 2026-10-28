@@ -2,21 +2,19 @@ package commands
 
 import (
 	"charm.land/lipgloss/v2/tree"
-	"github.com/azuyamat/ctf/internal/config"
-	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/ctf/internal/template"
 	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
-func cmdTemplates() command.Command {
+func (c *cli) cmdTemplates() command.Command {
 	return command.NewExecutableCommand("templates", "List available challenge templates").
-		Handler(runTemplates)
+		Handler(c.runTemplates)
 }
 
-func runTemplates(ctx *command.Context, args command.ValidatedArgs) error {
-	base, event := config.Current.BaseDir, state.Current.Event
-	templates, err := template.List(base, event)
+func (c *cli) runTemplates(ctx *command.Context, args command.ValidatedArgs) error {
+	l, event := c.Layout(), c.State.Event
+	templates, err := template.List(l, event)
 	if err != nil {
 		return err
 	}
@@ -26,8 +24,8 @@ func runTemplates(ctx *command.Context, args command.ValidatedArgs) error {
 		return nil
 	}
 
-	root := scopeTree(template.GlobalDir(base), template.ScopeGlobal)
-	eventTree := scopeTree(template.EventDir(base, event), template.ScopeEvent)
+	root := c.scopeTree(l.GlobalTemplatesDir(), template.ScopeGlobal)
+	eventTree := c.scopeTree(l.EventTemplatesDir(event), template.ScopeEvent)
 	for _, t := range templates {
 		if t.Scope == template.ScopeEvent {
 			eventTree.Child(templateLeaf(t))
@@ -43,8 +41,8 @@ func runTemplates(ctx *command.Context, args command.ValidatedArgs) error {
 	return nil
 }
 
-func scopeTree(dir, scope string) *tree.Tree {
-	return ui.Tree(ui.Bold(shortPath(dir)) + "  " + ui.Dim(scope))
+func (c *cli) scopeTree(dir, scope string) *tree.Tree {
+	return ui.Tree(ui.Bold(c.shortPath(dir)) + "  " + ui.Dim(scope))
 }
 
 func templateLeaf(t template.Template) string {

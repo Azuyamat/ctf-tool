@@ -4,9 +4,8 @@ import (
 	"os"
 	"runtime/debug"
 
+	"github.com/azuyamat/ctf/internal/app"
 	"github.com/azuyamat/ctf/internal/commands"
-	"github.com/azuyamat/ctf/internal/config"
-	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/ctf/internal/ui"
 )
 
@@ -30,22 +29,15 @@ func main() {
 }
 
 func run() error {
-	cfg, err := config.LoadOrCreateConfig()
+	a, err := app.Load(buildVersion())
 	if err != nil {
 		return err
 	}
-	config.Current = cfg
 
-	st, err := state.Load()
-	if err != nil {
-		return err
-	}
-	state.Current = st
-
-	if err := commands.Root(buildVersion()).Run(os.Args[1:]); err != nil {
+	if err := commands.Root(a).Run(os.Args[1:]); err != nil {
 		return err
 	}
 
 	// Config is saved by the commands that change it; state changes on most runs.
-	return state.Current.Save()
+	return a.Save()
 }

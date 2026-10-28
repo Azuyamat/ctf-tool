@@ -1,21 +1,17 @@
 package commands
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
+	"errors"
 	"strings"
 
 	"github.com/azuyamat/ctf/internal/challenge"
-	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/event"
 	"github.com/azuyamat/ctf/internal/fsutil"
-	"github.com/azuyamat/ctf/internal/state"
-	"github.com/azuyamat/ctf/internal/template"
 	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
-func cmdEvent() command.Command {
+func (c *cli) cmdEvent() command.Command {
 	return command.NewExecutableCommand("event", "Show or set the current CTF event").
 		Args(
 			command.NewStringArg(
@@ -25,64 +21,123 @@ func cmdEvent() command.Command {
 		).
 		Flags(
 			command.NewBoolFlag("clear", "c", "Unset the current event", false),
+			command.NewStringFlag("ctfd", "", "Link the event to a CTFd instance URL", ""),
+			command.NewBoolFlag("insecure", "", "Allow a plain http URL", false),
+			command.NewBoolFlag("unlink", "", "Remove the event's platform link", false),
+			command.NewStringFlag("flag-format", "", "Regular expression flags must match, e.g. 'picoCTF\\{.+\\}'", ""),
+			command.NewBoolFlag("no-flag-format", "", "Remove the event's flag format", false),
 		).
-		Handler(runEvent)
+		Handler(c.runEvent)
 }
 
-func runEvent(ctx *command.Context, args command.ValidatedArgs) error {
+func (c *cli) runEvent(ctx *command.Context, args command.ValidatedArgs) error {
 	if args.FlagBool("clear") {
-		state.Current.Event = ""
+		c.State.Event = ""
 		ui.Successf("event cleared")
 		return nil
 	}
 
-	if !args.Has("name") {
-		return printEventSummary()
+	rawURL, unlink := args.FlagString("ctfd"), args.FlagBool("unlink")
+	if rawURL != "" && unlink {
+		return errors.New("--ctfd and --unlink cannot be used together")
+	}
+	format, noFormat := args.FlagString("flag-format"), args.FlagBool("no-flag-format")
+	if format != "" && noFormat {
+		return errors.New("--flag-format and --no-flag-format cannot be used together")
+	}
+	editing := rawURL != "" || unlink || format != "" || noFormat
+
+	name := c.State.Event
+	if args.Has("name") {
+		name = args.String("name")
+	} else if !editing {
+		return c.printEventSummary()
+	} else if name == "" {
+		return errors.New("no event set, pass an event name")
 	}
 
-	name := args.String("name")
-	if err := validateEventName(name); err != nil {
+	ev, err := event.Load(c.Layout(), name)
+	if err != nil {
+		return err
+	}
+	if err := ev.Create(); err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Join(config.Current.BaseDir, name), 0755); err != nil {
-		return err
+	switch {
+	case rawURL != "":
+		if err := ev.Link(event.PlatformCTFd, rawURL, args.FlagBool("insecure")); err != nil {
+			return err
+		}
+		if err := ev.Save(); err != nil {
+			return err
+		}
+	case unlink:
+		if !ev.Unlink() {
+			ui.Notef("%s is not linked", ev.Name)
+		} else if err := ev.Save(); err != nil {
+			return err
+		} else {
+			ui.Successf("unlinked %s", ui.Bold(ev.Name))
+		}
 	}
 
-	state.Current.Event = name
-	ui.Successf("event set to %s", ui.Bold(name))
+	if format != "" || noFormat {
+		if noFormat {
+			ev.FlagFormat = ""
+		} else if err := ev.SetFlagFormat(format); err != nil {
+			return err
+		}
+		if err := ev.Save(); err != nil {
+			return err
+		}
+	}
+
+	c.State.Event = ev.Name
+	var details []string
+	if ev.Platform != nil {
+		details = append(details, platformLabel(ev.Platform))
+	}
+	if ev.FlagFormat != "" {
+		details = append(details, "flag "+ev.FlagFormat)
+	}
+	detail := ""
+	if len(details) > 0 {
+		detail = "  " + ui.Dim(strings.Join(details, " · "))
+	}
+	ui.Successf("event set to %s%s", ui.Bold(ev.Name), detail)
 	return nil
 }
 
-func printEventSummary() error {
-	if state.Current.Event == "" {
+func platformLabel(p *event.Platform) string {
+	return p.Kind + " " + p.Host()
+}
+
+func (c *cli) printEventSummary() error {
+	if c.State.Event == "" {
 		ui.Notef("no event set")
 		return nil
 	}
 
-	root := challengeRoot()
+	ev, err := event.Load(c.Layout(), c.State.Event)
+	if err != nil {
+		return err
+	}
+
+	root := c.ChallengeRoot()
 	challenges, err := challenge.ListChallenges(root)
 	if err != nil {
 		return err
 	}
 
-	parts := []string{
-		ui.Bold(state.Current.Event),
-		fmt.Sprintf("%d/%d solved", countSolved(challenges), len(challenges)),
+	parts := []string{ui.Bold(ev.Name)}
+	if ev.Platform != nil {
+		parts = append(parts, platformLabel(ev.Platform))
 	}
-	if last, ok := fsutil.Within(root, state.Current.LastChallenge); ok {
+	parts = append(parts, progressLine(challenges, false))
+	if last, ok := fsutil.Within(root, c.State.LastChallenge); ok {
 		parts = append(parts, "last: "+last)
 	}
 	ui.Println(strings.Join(parts, ui.Dim(" · ")))
-	return nil
-}
-
-func validateEventName(name string) error {
-	if !fsutil.ValidName(name) {
-		return fmt.Errorf("invalid event name: %s", name)
-	}
-	if name == template.DirName {
-		return fmt.Errorf("event name is reserved: %s", name)
-	}
 	return nil
 }

@@ -3,37 +3,33 @@ package commands
 import (
 	"errors"
 	"fmt"
-	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/azuyamat/ctf/internal/challenge"
-	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/fsutil"
 	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
-func cmdGrab() command.Command {
+func (c *cli) cmdGrab() command.Command {
 	return command.NewExecutableCommand("grab", "Grabs files from the downloads directory").
 		Flags(
 			command.NewIntFlag("recent", "n", "Number of most recent downloads to preselect", 1),
 		).
-		Handler(runGrab)
+		Handler(c.runGrab)
 }
 
-func runGrab(ctx *command.Context, args command.ValidatedArgs) error {
-	ch, err := challenge.LoadFromCwd(config.Current.BaseDir)
+func (c *cli) runGrab(ctx *command.Context, args command.ValidatedArgs) error {
+	ch, err := c.Challenge(false)
 	if err != nil {
-		return fmt.Errorf("load challenge: %w", err)
+		return err
 	}
 
-	downloads, err := listDownloads()
+	downloads, err := c.listDownloads()
 	if err != nil {
 		return err
 	}
@@ -46,8 +42,8 @@ func runGrab(ctx *command.Context, args command.ValidatedArgs) error {
 		return errors.New("recent count cannot be negative")
 	}
 
-	dst := grabDir(ch)
-	p := tea.NewProgram(ui.NewSelect("Grab into "+shortPath(dst), downloads).SelectFirst(n))
+	dst := ch.FilesDir()
+	p := tea.NewProgram(ui.NewSelect("Grab into "+c.shortPath(dst), downloads).SelectFirst(n))
 	model, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("run select UI: %w", err)
@@ -59,65 +55,12 @@ func runGrab(ctx *command.Context, args command.ValidatedArgs) error {
 
 	for _, choice := range selected {
 		d := choice.(downloadChoice)
-		if err := move(d.path, filepath.Join(dst, d.name)); err != nil {
+		if err := fsutil.Move(d.path, filepath.Join(dst, d.name)); err != nil {
 			return fmt.Errorf("grab %s: %w", d.name, err)
 		}
-		ui.Successf("grabbed %s → %s", ui.Bold(d.name), shortPath(dst))
+		ui.Successf("grabbed %s → %s", ui.Bold(d.name), c.shortPath(dst))
 	}
 	return nil
-}
-
-func grabDir(ch *challenge.Challenge) string {
-	dist := filepath.Join(ch.Path, "dist")
-	if info, err := os.Stat(dist); err == nil && info.IsDir() {
-		return dist
-	}
-	return ch.Path
-}
-
-func move(src, dst string) error {
-	if _, err := os.Lstat(dst); err == nil {
-		return fmt.Errorf("%s already exists", dst)
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-
-	err := os.Rename(src, dst)
-	if !errors.Is(err, syscall.EXDEV) {
-		return err
-	}
-
-	if err := copyPath(src, dst); err != nil {
-		os.RemoveAll(dst)
-		return err
-	}
-	return os.RemoveAll(src)
-}
-
-func copyPath(src, dst string) error {
-	info, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-	if info.IsDir() {
-		return os.CopyFS(dst, os.DirFS(src))
-	}
-
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
 }
 
 type downloadChoice struct {
@@ -142,8 +85,8 @@ func (d downloadChoice) Detail() string {
 
 var partialDownloadExts = []string{".part", ".crdownload", ".download"}
 
-func listDownloads() ([]ui.Choice, error) {
-	dir := config.Current.DownloadDir
+func (c *cli) listDownloads() ([]ui.Choice, error) {
+	dir := c.Config.DownloadDir
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("read downloads directory: %w", err)

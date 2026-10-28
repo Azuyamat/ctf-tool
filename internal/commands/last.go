@@ -4,21 +4,20 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/gear/command"
 )
 
-func cmdLast() command.Command {
+func (c *cli) cmdLast() command.Command {
 	return command.NewExecutableCommand("last", "Show the last created challenge folder").
-		Handler(runLast)
+		Handler(c.runLast)
 }
 
 // runLast fails rather than printing a message when there is no last challenge,
 // so `cd "$(ctf last)"` never sees non-path output.
-func runLast(ctx *command.Context, args command.ValidatedArgs) error {
-	if state.Current.LastChallenge == "" {
+func (c *cli) runLast(ctx *command.Context, args command.ValidatedArgs) error {
+	if c.State.LastChallenge == "" {
 		return errors.New("no challenge created yet")
 	}
-	fmt.Println(state.Current.LastChallenge)
+	fmt.Println(c.State.LastChallenge)
 	return nil
 }

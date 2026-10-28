@@ -1,0 +1,14 @@
+name: ctf-tool-ctfd
+
+services:
+  ctfd:
+    build: .
+    image: ctf-tool-ctfd:dev
+    ports:
+      - "${CTFD_PORT:-8000}:8000"
+    environment:
+      SECRET_KEY: ctf-tool-dev-secret
+      CTFD_PLAYER_TOKEN: ${CTFD_PLAYER_TOKEN:-ctfd_dev_player_token}
+      CTFD_ADMIN_TOKEN: ${CTFD_ADMIN_TOKEN:-ctfd_dev_admin_token}
+      CTFD_DISABLE_TOKENS: ${CTFD_DISABLE_TOKENS:-}
+      CTFD_USER_MODE: ${CTFD_USER_MODE:-}

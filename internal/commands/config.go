@@ -8,33 +8,33 @@ import (
 	"github.com/azuyamat/gear/command"
 )
 
-func cmdConfig() command.Command {
+func (c *cli) cmdConfig() command.Command {
 	return command.NewSubcommand("config", "Manage configuration").
-		AddChild(cmdConfigSet()).
-		AddChild(cmdConfigGet()).
-		AddChild(cmdConfigList())
+		AddChild(c.cmdConfigSet()).
+		AddChild(c.cmdConfigGet()).
+		AddChild(c.cmdConfigList())
 }
 
-func cmdConfigSet() command.Command {
+func (c *cli) cmdConfigSet() command.Command {
 	return command.NewExecutableCommand("set", "Set a configuration value").
 		Args(
 			command.NewStringArg("key", "Configuration key to set"),
 			command.NewStringArg("value", "Value to set for the configuration key"),
 		).
-		Handler(runConfigSet)
+		Handler(c.runConfigSet)
 }
 
-func cmdConfigGet() command.Command {
+func (c *cli) cmdConfigGet() command.Command {
 	return command.NewExecutableCommand("get", "Get a configuration value").
 		Args(
 			command.NewStringArg("key", "Configuration key to get"),
 		).
-		Handler(runConfigGet)
+		Handler(c.runConfigGet)
 }
 
-func cmdConfigList() command.Command {
+func (c *cli) cmdConfigList() command.Command {
 	return command.NewExecutableCommand("list", "List all configuration values").
-		Handler(runConfigList)
+		Handler(c.runConfigList)
 }
 
 func findKey(name string) (*config.Key, error) {
@@ -45,37 +45,37 @@ func findKey(name string) (*config.Key, error) {
 	return key, nil
 }
 
-func runConfigSet(ctx *command.Context, args command.ValidatedArgs) error {
+func (c *cli) runConfigSet(ctx *command.Context, args command.ValidatedArgs) error {
 	key, err := findKey(args.String("key"))
 	if err != nil {
 		return err
 	}
 
-	if err := key.Set(config.Current, args.String("value")); err != nil {
+	if err := key.Set(c.Config, args.String("value")); err != nil {
 		return err
 	}
-	if err := config.Current.Save(); err != nil {
+	if err := c.Config.Save(); err != nil {
 		return err
 	}
 
-	ui.Successf("%s set to %s", ui.Bold(key.Name), key.Get(config.Current))
+	ui.Successf("%s set to %s", ui.Bold(key.Name), key.Get(c.Config))
 	return nil
 }
 
-func runConfigGet(ctx *command.Context, args command.ValidatedArgs) error {
+func (c *cli) runConfigGet(ctx *command.Context, args command.ValidatedArgs) error {
 	key, err := findKey(args.String("key"))
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(key.Get(config.Current))
+	fmt.Println(key.Get(c.Config))
 	return nil
 }
 
-func runConfigList(ctx *command.Context, args command.ValidatedArgs) error {
+func (c *cli) runConfigList(ctx *command.Context, args command.ValidatedArgs) error {
 	rows := make([][]string, len(config.Keys))
 	for i, key := range config.Keys {
-		rows[i] = []string{ui.Bold(key.Name), key.Get(config.Current), ui.Dim(key.Description)}
+		rows[i] = []string{ui.Bold(key.Name), key.Get(c.Config), ui.Dim(key.Description)}
 	}
 	ui.Println(ui.Table(rows))
 	return nil
