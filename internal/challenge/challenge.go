@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-)
 
-const folderName = "ctf"
+	"github.com/azuyamat/ctf/internal/config"
+)
 
 type Challenge struct {
 	Name string
@@ -17,11 +17,8 @@ type Challenge struct {
 }
 
 func Root() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, folderName), nil
+	base := config.Current.BaseDir
+	return base, nil
 }
 
 func New(name string) (*Challenge, error) {

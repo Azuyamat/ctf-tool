@@ -7,8 +7,6 @@ import (
 	"github.com/azuyamat/gear/command"
 )
 
-var CTF_FOLDER_NAME = "ctf"
-
 func cmdNew() command.Command {
 	return command.NewExecutableCommand("new", "Create a new CTF challenge folder").
 		Args(
