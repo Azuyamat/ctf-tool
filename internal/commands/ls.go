@@ -78,7 +78,8 @@ func (c *cli) runLs(ctx *command.Context, args command.ValidatedArgs) error {
 		}
 	}
 	ui.Println()
-	ui.Println(ui.Table(challengeRows(entries)))
+	ev, _ := c.Event()
+	ui.Println(ui.Table(challengeRows(entries, c.CachedUser(ev))))
 	return nil
 }
 
@@ -105,7 +106,7 @@ func listEntries(root string, challenges []*challenge.Challenge) []listed {
 	return entries
 }
 
-func challengeRows(entries []listed) [][]string {
+func challengeRows(entries []listed, me string) [][]string {
 	showPoints := slices.ContainsFunc(entries, func(e listed) bool { return e.ch.Remote != nil })
 
 	var table [][]string
@@ -119,12 +120,12 @@ func challengeRows(entries []listed) [][]string {
 				current = e.category
 			}
 		}
-		table = append(table, challengeRow(indent, e.name, e.ch, showPoints))
+		table = append(table, challengeRow(indent, e.name, e.ch, showPoints, me))
 	}
 	return table
 }
 
-func challengeRow(indent, name string, ch *challenge.Challenge, showPoints bool) []string {
+func challengeRow(indent, name string, ch *challenge.Challenge, showPoints bool, me string) []string {
 	mark := ui.Dim("·")
 	if ch.IsSolved() {
 		mark = ui.Green("✓")
@@ -142,8 +143,8 @@ func challengeRow(indent, name string, ch *challenge.Challenge, showPoints bool)
 	}
 
 	when := ui.Dim(ui.Ago(ch.Solved))
-	if ch.SolvedBy == challenge.SolvedByTeam {
-		when = ui.Accent("team") + " " + when
+	if ch.SolvedByTeammate(me) {
+		when = ui.Accent(ch.Solver) + " " + when
 	}
 	return append(row, when, ui.Accent(ansi.Truncate(ch.Flag, flagWidth, "…")))
 }

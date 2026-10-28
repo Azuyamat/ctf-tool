@@ -14,8 +14,6 @@ import (
 
 const DefaultReadmeName = "README.md"
 
-var ReadmeName = DefaultReadmeName
-
 func (h Hint) Label(n int) string {
 	if h.Title != "" {
 		return h.Title
@@ -82,8 +80,8 @@ func (c *Challenge) Readme() string {
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
-func (c *Challenge) WriteReadme() (bool, error) {
-	path := filepath.Join(c.Path, ReadmeName)
+func (c *Challenge) WriteReadme(name string) (bool, error) {
+	path := filepath.Join(c.Path, name)
 	data := []byte(c.Readme())
 
 	existing, err := os.ReadFile(path)
@@ -94,7 +92,7 @@ func (c *Challenge) WriteReadme() (bool, error) {
 		return false, err
 	}
 	if err := fsutil.WriteFile(path, data, 0644); err != nil {
-		return false, fmt.Errorf("write %s: %w", ReadmeName, err)
+		return false, fmt.Errorf("write %s: %w", name, err)
 	}
 	return true, nil
 }

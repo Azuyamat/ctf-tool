@@ -17,18 +17,25 @@ import (
 	"github.com/azuyamat/ctf/internal/template"
 )
 
-const FileName = ".ctf.json"
+const (
+	FileName      = ".ctf.json"
+	LocalFileName = ".ctf.local.json"
+)
 
 type Challenge struct {
-	Name        string            `json:"name"`
-	Path        string            `json:"-"`
-	Flag        string            `json:"flag,omitempty"`
-	Created     time.Time         `json:"created"`
-	Solved      time.Time         `json:"solved,omitzero"`
-	SolvedBy    string            `json:"solvedBy,omitempty"`
-	Solver      string            `json:"solver,omitempty"`
-	Connection  string            `json:"connection,omitempty"`
-	Remote      *Remote           `json:"remote,omitempty"`
+	Name       string    `json:"name"`
+	Path       string    `json:"-"`
+	Flag       string    `json:"flag,omitempty"`
+	Created    time.Time `json:"created"`
+	Solved     time.Time `json:"solved,omitzero"`
+	Solver     string    `json:"solver,omitempty"`
+	Connection string    `json:"connection,omitempty"`
+	Remote     *Remote   `json:"remote,omitempty"`
+	Local      Local     `json:"-"`
+}
+
+type Local struct {
+	Attempts    int               `json:"attempts,omitempty"`
 	Downloads   map[string]string `json:"downloads,omitempty"`
 	Submissions []Submission      `json:"submissions,omitempty"`
 }
@@ -40,11 +47,11 @@ type Submission struct {
 }
 
 func (c *Challenge) Record(flag, status string) {
-	c.Submissions = append(c.Submissions, Submission{Time: time.Now(), Flag: flag, Status: status})
+	c.Local.Submissions = append(c.Local.Submissions, Submission{Time: time.Now(), Flag: flag, Status: status})
 }
 
 func (c *Challenge) WasRejected(flag string) bool {
-	for _, s := range c.Submissions {
+	for _, s := range c.Local.Submissions {
 		if s.Flag == flag && s.Status == string(platform.StatusIncorrect) {
 			return true
 		}
@@ -52,30 +59,55 @@ func (c *Challenge) WasRejected(flag string) bool {
 	return false
 }
 
-const (
-	SolvedByMe    = "me"
-	SolvedByTeam  = "team"
-	SolvedByLocal = "local"
-)
-
-func (c *Challenge) MarkSolved(by, solver string, at time.Time) {
+func (c *Challenge) MarkSolved(solver string, at time.Time) {
 	if c.Solved.IsZero() {
 		c.Solved = at
 	}
-	c.SolvedBy = by
 	c.Solver = solver
 }
 
 func (c *Challenge) SolvedOnServer() bool {
-	return c.SolvedBy == SolvedByMe || c.SolvedBy == SolvedByTeam
+	return c.IsSolved() && c.Solver != ""
+}
+
+func (c *Challenge) SolvedByTeammate(me string) bool {
+	return c.SolvedOnServer() && me != "" && c.Solver != me
 }
 
 const DefaultFilesDir = "dist"
 
-var FilesDirName = DefaultFilesDir
+type Paths struct {
+	Readme string
+	Files  string
+}
 
-func (c *Challenge) FilesDir() string {
-	dist := filepath.Join(c.Path, FilesDirName)
+var DefaultPaths = Paths{Readme: DefaultReadmeName, Files: DefaultFilesDir}
+
+func (p Paths) Validate() error {
+	if err := ValidateName(p.Readme); err != nil {
+		return err
+	}
+	if err := ValidateName(p.Files); err != nil {
+		return err
+	}
+	if p.Readme == p.Files {
+		return fmt.Errorf("readmeName and filesDir can't both be %s", p.Files)
+	}
+	return nil
+}
+
+func ValidateName(name string) error {
+	if !fsutil.ValidName(name) {
+		return fmt.Errorf("invalid file name: %q", name)
+	}
+	if name == FileName || name == LocalFileName || layout.IsReserved(name) {
+		return fmt.Errorf("%s is used by ctf", name)
+	}
+	return nil
+}
+
+func (c *Challenge) FilesDir(name string) string {
+	dist := filepath.Join(c.Path, name)
 	if info, err := os.Stat(dist); err == nil && info.IsDir() {
 		return dist
 	}
@@ -92,7 +124,6 @@ type Remote struct {
 	Tags        []string `json:"tags,omitempty"`
 	Files       []string `json:"files,omitempty"`
 	Hints       []Hint   `json:"hints,omitempty"`
-	Attempts    int      `json:"attempts,omitempty"`
 	MaxAttempts int      `json:"maxAttempts,omitempty"`
 }
 
@@ -114,7 +145,6 @@ func RemoteFrom(d platform.Detail) *Remote {
 		Points:      d.Points,
 		Tags:        d.Tags,
 		Hints:       HintsFrom(d.Hints),
-		Attempts:    d.Attempts,
 		MaxAttempts: d.MaxAttempts,
 	}
 	for _, f := range d.Files {
@@ -226,8 +256,15 @@ func (c *Challenge) configFilePath() string {
 	return filepath.Join(c.Path, FileName)
 }
 
+func (c *Challenge) localFilePath() string {
+	return filepath.Join(c.Path, LocalFileName)
+}
+
 func (c *Challenge) Load() error {
 	if err := fsutil.ReadJSON(c.configFilePath(), c); err != nil {
+		return fmt.Errorf("read challenge: %w", err)
+	}
+	if err := fsutil.ReadJSON(c.localFilePath(), &c.Local); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("read challenge: %w", err)
 	}
 	return nil
@@ -237,7 +274,22 @@ func (c *Challenge) Save() error {
 	if err := fsutil.WriteJSON(c.configFilePath(), c, 0644); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
+	if c.Local.empty() && !exists(c.localFilePath()) {
+		return nil
+	}
+	if err := fsutil.WriteJSON(c.localFilePath(), c.Local, 0644); err != nil {
+		return fmt.Errorf("write local file: %w", err)
+	}
 	return nil
+}
+
+func (l Local) empty() bool {
+	return l.Attempts == 0 && len(l.Downloads) == 0 && len(l.Submissions) == 0
+}
+
+func exists(path string) bool {
+	_, err := os.Lstat(path)
+	return err == nil
 }
 
 var ErrNotFound = errors.New("not inside a challenge")

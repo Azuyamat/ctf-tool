@@ -83,6 +83,7 @@ func (c *cli) runLogin(ctx *command.Context, args command.ValidatedArgs) error {
 		return err
 	}
 	creds.Set(ev.Platform.URL, auth)
+	creds.SetUser(ev.Platform.URL, me.Name)
 	if err := creds.Save(); err != nil {
 		return err
 	}

@@ -14,6 +14,7 @@ import (
 type Credentials struct {
 	Tokens   map[string]string `json:"tokens"`
 	Sessions map[string]string `json:"sessions,omitempty"`
+	Users    map[string]string `json:"users,omitempty"`
 }
 
 func filePath() (string, error) {
@@ -40,6 +41,9 @@ func Load() (*Credentials, error) {
 	if c.Sessions == nil {
 		c.Sessions = make(map[string]string)
 	}
+	if c.Users == nil {
+		c.Users = make(map[string]string)
+	}
 	return c, nil
 }
 
@@ -57,11 +61,20 @@ func (c *Credentials) Set(instance string, auth platform.Auth) {
 	}
 }
 
+func (c *Credentials) User(instance string) string {
+	return c.Users[instance]
+}
+
+func (c *Credentials) SetUser(instance, name string) {
+	c.Users[instance] = name
+}
+
 func (c *Credentials) Delete(instance string) bool {
 	_, token := c.Tokens[instance]
 	_, session := c.Sessions[instance]
 	delete(c.Tokens, instance)
 	delete(c.Sessions, instance)
+	delete(c.Users, instance)
 	return token || session
 }
 

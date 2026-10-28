@@ -60,6 +60,7 @@ func (c *cli) runPull(ctx *command.Context, args command.ValidatedArgs) error {
 		Root:       ev.Path,
 		Event:      ev.Name,
 		Template:   tmpl,
+		Paths:      c.Config.Paths(ev),
 		Categories: command.ArgValue[[]string](args, "categories"),
 		DryRun:     dryRun,
 		FreeHints:  command.FlagValue[bool](args, "free-hints"),
@@ -68,6 +69,9 @@ func (c *cli) runPull(ctx *command.Context, args command.ValidatedArgs) error {
 	})
 	if err != nil {
 		return fmt.Errorf("pull from %s: %w", ev.Platform.Host(), err)
+	}
+	if _, err := c.Username(ctx.Context(), ev, p); err != nil {
+		ui.Notef("couldn't look up your username: %v", err)
 	}
 
 	if dryRun {

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/azuyamat/ctf/internal/challenge"
 	"github.com/azuyamat/ctf/internal/fsutil"
 	"github.com/azuyamat/ctf/internal/layout"
 )
@@ -28,6 +29,8 @@ type Event struct {
 	Path       string    `json:"-"`
 	Platform   *Platform `json:"platform,omitempty"`
 	FlagFormat string    `json:"flagFormat,omitempty"`
+	ReadmeName string    `json:"readmeName,omitempty"`
+	FilesDir   string    `json:"filesDir,omitempty"`
 }
 
 func New(l layout.Layout, name string) (*Event, error) {
@@ -52,15 +55,39 @@ func Load(l layout.Layout, name string) (*Event, error) {
 		return nil, fmt.Errorf("read event: %w", err)
 	}
 	e.Name = name
+	for _, value := range []string{e.ReadmeName, e.FilesDir} {
+		if value == "" {
+			continue
+		}
+		if err := challenge.ValidateName(value); err != nil {
+			return nil, fmt.Errorf("event %s: %w", name, err)
+		}
+	}
 	return e, nil
+}
+
+func (e *Event) Exists() bool {
+	_, err := os.Lstat(e.configFilePath())
+	return err == nil
 }
 
 func (e *Event) configFilePath() string {
 	return filepath.Join(e.Path, eventFileName)
 }
 
+const gitignoreName = ".gitignore"
+
+var gitignore = challenge.LocalFileName + "\n*.part\n"
+
 func (e *Event) Create() error {
-	return os.MkdirAll(e.Path, 0755)
+	if err := os.MkdirAll(e.Path, 0755); err != nil {
+		return err
+	}
+	path := filepath.Join(e.Path, gitignoreName)
+	if _, err := os.Lstat(path); !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return fsutil.WriteFile(path, []byte(gitignore), 0644)
 }
 
 func (e *Event) Save() error {

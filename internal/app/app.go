@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -36,8 +37,6 @@ func Load(version string) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	challenge.ReadmeName = cfg.ReadmeName
-	challenge.FilesDirName = cfg.FilesDir
 	return &App{Config: cfg, State: st, Version: version, loaded: *st}, nil
 }
 
@@ -123,6 +122,45 @@ func (a *App) Auth(ev *event.Event) (platform.Auth, error) {
 		return auth, nil
 	}
 	return platform.Auth{}, fmt.Errorf("not logged in to %s, run ctf login", ev.Platform.Host())
+}
+
+func (a *App) CachedUser(ev *event.Event) string {
+	if ev == nil || ev.Platform == nil || os.Getenv(TokenEnv) != "" {
+		return ""
+	}
+	creds, err := credentials.Load()
+	if err != nil {
+		return ""
+	}
+	return creds.User(ev.Platform.URL)
+}
+
+func (a *App) Username(ctx context.Context, ev *event.Event, p platform.Platform) (string, error) {
+	if name := a.CachedUser(ev); name != "" {
+		return name, nil
+	}
+	me, err := p.Me(ctx)
+	if err != nil {
+		return "", err
+	}
+	if os.Getenv(TokenEnv) == "" {
+		if err := a.RememberUser(ev, me.Name); err != nil {
+			return "", err
+		}
+	}
+	return me.Name, nil
+}
+
+func (a *App) RememberUser(ev *event.Event, name string) error {
+	creds, err := credentials.Load()
+	if err != nil {
+		return err
+	}
+	if creds.User(ev.Platform.URL) == name {
+		return nil
+	}
+	creds.SetUser(ev.Platform.URL, name)
+	return creds.Save()
 }
 
 func (a *App) Connect(ev *event.Event) (platform.Platform, error) {

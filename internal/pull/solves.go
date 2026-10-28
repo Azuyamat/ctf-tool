@@ -76,11 +76,7 @@ func (pl *puller) applySolve(ch *challenge.Challenge, solves map[int]platform.So
 		return res, true
 	}
 
-	by := challenge.SolvedByTeam
-	if s.Mine {
-		by = challenge.SolvedByMe
-	}
-	if ch.IsSolved() && ch.SolvedBy == by && (ch.Solver == s.User || s.Mine) {
+	if ch.IsSolved() && ch.Solver == s.User {
 		return res, false
 	}
 
@@ -89,7 +85,7 @@ func (pl *puller) applySolve(ch *challenge.Challenge, solves map[int]platform.So
 	if at.IsZero() {
 		at = time.Now()
 	}
-	ch.MarkSolved(by, s.User, at)
+	ch.MarkSolved(s.User, at)
 	res.Kind, res.Mine, res.Solver = SolvedRemotely, s.Mine, s.User
 	if !pl.opts.DryRun {
 		if err := ch.Save(); err != nil {

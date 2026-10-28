@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/azuyamat/ctf/internal/challenge"
+	"github.com/azuyamat/ctf/internal/event"
 	"github.com/azuyamat/ctf/internal/platform"
 	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
@@ -50,7 +51,7 @@ func (c *cli) runHint(ctx *command.Context, args command.ValidatedArgs) error {
 	hints := challenge.HintsFrom(d.Hints)
 	if len(hints) == 0 {
 		ui.Notef("%s has no hints", c.shortPath(ch.Path))
-		return c.saveHints(ch, hints)
+		return c.saveHints(ev, ch, hints)
 	}
 
 	if !args.Has("number") {
@@ -63,7 +64,7 @@ func (c *cli) runHint(ctx *command.Context, args command.ValidatedArgs) error {
 			rows[i] = []string{ui.Bold(fmt.Sprint(i + 1)), h.CostLabel(), h.Label(i + 1), status}
 		}
 		ui.Println(ui.Table(rows))
-		return c.saveHints(ch, hints)
+		return c.saveHints(ev, ch, hints)
 	}
 
 	n := command.ArgValue[int](args, "number")
@@ -87,7 +88,7 @@ func (c *cli) runHint(ctx *command.Context, args command.ValidatedArgs) error {
 			}
 			if !confirm(fmt.Sprintf("Unlock %q for %d points? %s: %d [y/N] ", h.Label(n), h.Cost, scoreLabel, me.Score)) {
 				ui.Notef("hint %d not unlocked", n)
-				return c.saveHints(ch, hints)
+				return c.saveHints(ev, ch, hints)
 			}
 		}
 
@@ -99,7 +100,7 @@ func (c *cli) runHint(ctx *command.Context, args command.ValidatedArgs) error {
 		h = hints[n-1]
 	}
 
-	if err := c.saveHints(ch, hints); err != nil {
+	if err := c.saveHints(ev, ch, hints); err != nil {
 		return err
 	}
 	ui.Println(ui.Bold(h.Label(n)) + "  " + ui.Dim(h.CostLabel()))
@@ -107,12 +108,12 @@ func (c *cli) runHint(ctx *command.Context, args command.ValidatedArgs) error {
 	return nil
 }
 
-func (c *cli) saveHints(ch *challenge.Challenge, hints []challenge.Hint) error {
+func (c *cli) saveHints(ev *event.Event, ch *challenge.Challenge, hints []challenge.Hint) error {
 	ch.Remote.Hints = hints
 	if err := ch.Save(); err != nil {
 		return err
 	}
-	_, err := ch.WriteReadme()
+	_, err := ch.WriteReadme(c.Config.Paths(ev).Readme)
 	return err
 }
 

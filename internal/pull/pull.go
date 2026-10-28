@@ -34,6 +34,7 @@ type Options struct {
 	Root       string
 	Event      string
 	Template   *template.Template
+	Paths      challenge.Paths
 	Categories []string
 	DryRun     bool
 	FreeHints  bool
@@ -214,11 +215,46 @@ func (pl *puller) apply(d platform.Detail) (Result, *challenge.Challenge) {
 		pl.assigned[rel] = true
 		return pl.update(ch, d, Linked), ch
 	}
-	if pl.taken(rel) {
+	if pl.taken(rel) && !pl.adoptable(rel) {
 		rel += fmt.Sprintf("-%d", d.ID)
+	}
+	if pl.adoptable(rel) {
+		pl.assigned[rel] = true
+		return pl.adopt(rel, d)
 	}
 	pl.assigned[rel] = true
 	return pl.create(rel, d)
+}
+
+func (pl *puller) adoptable(rel string) bool {
+	if pl.assigned[rel] || pl.byPath[rel] != nil {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(pl.opts.Root, filepath.FromSlash(rel)))
+	return err == nil && info.IsDir()
+}
+
+func (pl *puller) adopt(rel string, d platform.Detail) (Result, *challenge.Challenge) {
+	res := Result{Kind: Linked, Path: rel, Points: d.Points}
+	ch, err := challenge.New(pl.opts.Root, rel)
+	if err != nil {
+		return failed(res, err), nil
+	}
+	ch.Connection = d.Connection
+	ch.Remote = challenge.RemoteFrom(d)
+	ch.Local.Attempts = d.Attempts
+	pl.byID[d.ID] = ch
+	if pl.opts.DryRun {
+		return res, ch
+	}
+
+	if err := ch.Save(); err != nil {
+		return failed(res, err), nil
+	}
+	if _, err := ch.WriteReadme(pl.opts.Paths.Readme); err != nil {
+		return failed(res, err), nil
+	}
+	return res, ch
 }
 
 func (pl *puller) taken(rel string) bool {
@@ -237,6 +273,7 @@ func (pl *puller) create(rel string, d platform.Detail) (Result, *challenge.Chal
 	}
 	ch.Connection = d.Connection
 	ch.Remote = challenge.RemoteFrom(d)
+	ch.Local.Attempts = d.Attempts
 	pl.byID[d.ID] = ch
 	if pl.opts.DryRun {
 		return res, ch
@@ -245,7 +282,7 @@ func (pl *puller) create(rel string, d platform.Detail) (Result, *challenge.Chal
 	if err := ch.Create(pl.opts.Template, pl.opts.Event); err != nil {
 		return failed(res, err), nil
 	}
-	if _, err := ch.WriteReadme(); err != nil {
+	if _, err := ch.WriteReadme(pl.opts.Paths.Readme); err != nil {
 		return failed(res, err), nil
 	}
 	return res, ch
@@ -271,10 +308,11 @@ func (pl *puller) update(ch *challenge.Challenge, d platform.Detail, kind Kind) 
 
 	ch.Remote = next
 	ch.Connection = connection
+	ch.Local.Attempts = d.Attempts
 	if err := ch.Save(); err != nil {
 		return failed(res, err)
 	}
-	if _, err := ch.WriteReadme(); err != nil {
+	if _, err := ch.WriteReadme(pl.opts.Paths.Readme); err != nil {
 		return failed(res, err)
 	}
 	return res

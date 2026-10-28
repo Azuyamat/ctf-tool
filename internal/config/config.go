@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -9,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/azuyamat/ctf/internal/challenge"
+	"github.com/azuyamat/ctf/internal/event"
 	"github.com/azuyamat/ctf/internal/fsutil"
-	"github.com/azuyamat/ctf/internal/layout"
 	"github.com/azuyamat/ctf/internal/template"
 )
 
@@ -28,8 +29,26 @@ var Keys = []Key{
 	stringKey("downloadDir", "Your default downloads directory", func(c *Config) *string { return &c.DownloadDir }, NormalizePath),
 	stringKey("editor", "Command ctf open runs, empty to use $EDITOR", func(c *Config) *string { return &c.Editor }, normalizeEditor),
 	stringKey("defaultTemplate", "Template used when no -t is given", func(c *Config) *string { return &c.DefaultTemplate }, normalizeTemplate),
-	stringKey("readmeName", "File pull writes the challenge description to", func(c *Config) *string { return &c.ReadmeName }, normalizeFileName),
-	stringKey("filesDir", "Folder in a challenge that downloads go into", func(c *Config) *string { return &c.FilesDir }, normalizeFileName),
+	eventKey("readmeName", "File pull writes the challenge description to", func(c *Config) *string { return &c.ReadmeName }, func(e *event.Event) *string { return &e.ReadmeName }, normalizeFileName),
+	eventKey("filesDir", "Folder in a challenge that downloads go into", func(c *Config) *string { return &c.FilesDir }, func(e *event.Event) *string { return &e.FilesDir }, normalizeFileName),
+}
+
+func eventKey(name, description string, field func(*Config) *string, eventField func(*event.Event) *string, normalize func(string) (string, error)) Key {
+	k := stringKey(name, description, field, normalize)
+	k.GetEvent = func(e *event.Event) string {
+		return *eventField(e)
+	}
+	k.SetEvent = func(e *event.Event, value string) error {
+		if value != "" {
+			var err error
+			if value, err = normalize(value); err != nil {
+				return err
+			}
+		}
+		*eventField(e) = value
+		return nil
+	}
+	return k
 }
 
 func stringKey(name, description string, field func(*Config) *string, normalize func(string) (string, error)) Key {
@@ -62,13 +81,7 @@ func normalizeTemplate(value string) (string, error) {
 }
 
 func normalizeFileName(value string) (string, error) {
-	if !fsutil.ValidName(value) {
-		return "", fmt.Errorf("invalid file name: %q", value)
-	}
-	if value == challenge.FileName || layout.IsReserved(value) {
-		return "", fmt.Errorf("%s is used by ctf", value)
-	}
-	return value, nil
+	return value, challenge.ValidateName(value)
 }
 
 func FindKey(name string) *Key {
@@ -111,7 +124,7 @@ func configFilePath() (string, error) {
 	return filepath.Join(folder, "config.json"), nil
 }
 
-func defaultConfig() (*Config, error) {
+func Defaults() (*Config, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
@@ -132,7 +145,7 @@ func LoadOrCreateConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	config, err := defaultConfig()
+	config, err := Defaults()
 	if err != nil {
 		return nil, err
 	}
@@ -156,10 +169,16 @@ func LoadOrCreateConfig() (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	if c.ReadmeName == c.FilesDir {
-		return fmt.Errorf("readmeName and filesDir can't both be %s", c.FilesDir)
+	return c.Paths(nil).Validate()
+}
+
+func (c *Config) Paths(ev *event.Event) challenge.Paths {
+	p := challenge.Paths{Readme: c.ReadmeName, Files: c.FilesDir}
+	if ev != nil {
+		p.Readme = cmp.Or(ev.ReadmeName, p.Readme)
+		p.Files = cmp.Or(ev.FilesDir, p.Files)
 	}
-	return nil
+	return p
 }
 
 func (c *Config) Save() error {

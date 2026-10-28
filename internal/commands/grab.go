@@ -43,7 +43,8 @@ func (c *cli) runGrab(ctx *command.Context, args command.ValidatedArgs) error {
 		return errors.New("recent count cannot be negative")
 	}
 
-	dst := ch.FilesDir()
+	ev, _ := c.EventFor(ch)
+	dst := ch.FilesDir(c.Config.Paths(ev).Files)
 	p := tea.NewProgram(ui.NewSelect("Grab into "+c.shortPath(dst), downloads).SelectFirst(n))
 	model, err := p.Run()
 	if err != nil {

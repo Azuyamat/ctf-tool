@@ -3,7 +3,6 @@ package commands
 import (
 	"errors"
 
-	"github.com/azuyamat/ctf/internal/challenge"
 	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
@@ -43,9 +42,6 @@ func (c *cli) runFlag(ctx *command.Context, args command.ValidatedArgs) error {
 		ui.Notef("warning: flag doesn't match the event's format %s", ev.FlagFormat)
 	}
 	ch.SetFlag(flag)
-	if ch.SolvedBy == "" {
-		ch.SolvedBy = challenge.SolvedByLocal
-	}
 	if err := ch.Save(); err != nil {
 		return err
 	}

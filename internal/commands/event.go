@@ -63,8 +63,15 @@ func (c *cli) runEvent(ctx *command.Context, args command.ValidatedArgs) error {
 	if err != nil {
 		return err
 	}
+	isNew := !ev.Exists()
 	if err := ev.Create(); err != nil {
 		return err
+	}
+	if isNew {
+		ev.ReadmeName, ev.FilesDir = c.Config.ReadmeName, c.Config.FilesDir
+		if err := ev.Save(); err != nil {
+			return err
+		}
 	}
 
 	switch {

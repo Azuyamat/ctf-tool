@@ -42,7 +42,8 @@ func (c *cli) runInfo(ctx *command.Context, args command.ValidatedArgs) error {
 	}
 	ui.Println(ui.Bold(title))
 	ui.Println()
-	ui.Println(ui.Table(infoRows(c.shortPath(ch.Path), ch)))
+	ev, _ := c.EventFor(ch)
+	ui.Println(ui.Table(infoRows(c.shortPath(ch.Path), ch, c.CachedUser(ev), c.Config.Paths(ev).Readme)))
 
 	if ch.Remote != nil {
 		if desc := strings.TrimSpace(ch.Remote.Description); desc != "" {
@@ -53,7 +54,7 @@ func (c *cli) runInfo(ctx *command.Context, args command.ValidatedArgs) error {
 	return nil
 }
 
-func infoRows(path string, ch *challenge.Challenge) [][]string {
+func infoRows(path string, ch *challenge.Challenge, me, readme string) [][]string {
 	var rows [][]string
 	add := func(label, value string) {
 		if value != "" {
@@ -70,14 +71,14 @@ func infoRows(path string, ch *challenge.Challenge) [][]string {
 		add("tags", strings.Join(r.Tags, ", "))
 	}
 	add("connection", ch.Connection)
-	if r != nil && (r.MaxAttempts > 0 || r.Attempts > 0) {
-		attempts := fmt.Sprintf("%d", r.Attempts)
+	if r != nil && (r.MaxAttempts > 0 || ch.Local.Attempts > 0) {
+		attempts := fmt.Sprintf("%d", ch.Local.Attempts)
 		if r.MaxAttempts > 0 {
-			attempts = fmt.Sprintf("%d / %d", r.Attempts, r.MaxAttempts)
+			attempts = fmt.Sprintf("%d / %d", ch.Local.Attempts, r.MaxAttempts)
 		}
 		add("attempts", attempts)
 	}
-	add("solved", solvedLabel(ch))
+	add("solved", solvedLabel(ch, me))
 	if ch.Flag != "" {
 		add("flag", ui.Accent(ch.Flag))
 	}
@@ -89,7 +90,7 @@ func infoRows(path string, ch *challenge.Challenge) [][]string {
 				unlocked++
 			}
 		}
-		add("hints", fmt.Sprintf("%d of %d unlocked, see %s", unlocked, len(r.Hints), challenge.ReadmeName))
+		add("hints", fmt.Sprintf("%d of %d unlocked, see %s", unlocked, len(r.Hints), readme))
 	}
 	if r != nil {
 		add("link", r.URL)
@@ -101,29 +102,24 @@ func infoRows(path string, ch *challenge.Challenge) [][]string {
 	return rows
 }
 
-func solvedLabel(ch *challenge.Challenge) string {
+func solvedLabel(ch *challenge.Challenge, me string) string {
 	if !ch.IsSolved() {
 		return ui.Dim("no")
 	}
 	label := ui.Green("✓") + " " + ui.Ago(ch.Solved)
-	switch ch.SolvedBy {
-	case challenge.SolvedByTeam:
-		if ch.Solver != "" {
-			label += " by " + ch.Solver
-		}
-		label += ui.Dim(" (team)")
-	case challenge.SolvedByLocal:
-		if ch.Remote != nil {
-			label += ui.Dim(" (recorded locally, not submitted)")
-		}
+	switch {
+	case ch.SolvedByTeammate(me):
+		label += " by " + ch.Solver + ui.Dim(" (team)")
+	case !ch.SolvedOnServer() && ch.Remote != nil:
+		label += ui.Dim(" (recorded locally, not submitted)")
 	}
 	return label
 }
 
 func infoFiles(ch *challenge.Challenge) []string {
-	if len(ch.Downloads) > 0 {
-		files := make([]string, 0, len(ch.Downloads))
-		for _, rel := range ch.Downloads {
+	if len(ch.Local.Downloads) > 0 {
+		files := make([]string, 0, len(ch.Local.Downloads))
+		for _, rel := range ch.Local.Downloads {
 			files = append(files, rel)
 		}
 		slices.Sort(files)

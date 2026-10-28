@@ -68,21 +68,27 @@ func (c *cli) runSubmit(ctx *command.Context, args command.ValidatedArgs) error 
 	}
 	ch.Record(flag, string(res.Status))
 	if res.Status == platform.StatusIncorrect {
-		ch.Remote.Attempts = d.Attempts + 1
+		ch.Local.Attempts = d.Attempts + 1
 	}
 
-	outcome := submitOutcome(ch, d, flag, res)
+	var me string
+	if res.Status == platform.StatusCorrect {
+		if me, err = c.Username(ctx.Context(), ev, p); err != nil {
+			ui.Notef("couldn't look up your username: %v", err)
+		}
+	}
+	outcome := submitOutcome(ch, d, flag, res, me)
 	if err := ch.Save(); err != nil {
 		return err
 	}
 	return outcome(name)
 }
 
-func submitOutcome(ch *challenge.Challenge, d platform.Detail, flag string, res platform.SubmitResult) func(string) error {
+func submitOutcome(ch *challenge.Challenge, d platform.Detail, flag string, res platform.SubmitResult, me string) func(string) error {
 	switch res.Status {
 	case platform.StatusCorrect:
 		ch.SetFlag(flag)
-		ch.MarkSolved(challenge.SolvedByMe, "", time.Now())
+		ch.MarkSolved(me, time.Now())
 		return func(name string) error {
 			ui.Successf("correct: %s solved  %s", ui.Bold(name), ui.Green(fmt.Sprintf("+%d", d.Points)))
 			return nil

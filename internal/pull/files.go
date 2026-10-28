@@ -43,10 +43,10 @@ func (pl *puller) download(ctx context.Context, ch *challenge.Challenge, files [
 			results = append(results, *res)
 		}
 		if saved != "" {
-			if ch.Downloads == nil {
-				ch.Downloads = make(map[string]string)
+			if ch.Local.Downloads == nil {
+				ch.Local.Downloads = make(map[string]string)
 			}
-			ch.Downloads[f.ID] = saved
+			ch.Local.Downloads[f.ID] = saved
 			changed = true
 		}
 	}
@@ -63,13 +63,13 @@ func (pl *puller) downloadOne(ctx context.Context, ch *challenge.Challenge, f pl
 	if !fsutil.ValidName(f.Name) {
 		return &FileResult{Kind: FileFailed, Path: pl.rel(ch.Path), Err: fmt.Errorf("unsafe file name %q", f.Name)}, ""
 	}
-	if saved, ok := ch.Downloads[f.ID]; ok && exists(filepath.Join(ch.Path, saved)) {
+	if saved, ok := ch.Local.Downloads[f.ID]; ok && exists(filepath.Join(ch.Path, saved)) {
 		return nil, ""
 	}
 
 	dir := pl.filesDir(ch)
-	if dir == ch.Path && ownedByPull(f.Name) {
-		dir = filepath.Join(ch.Path, challenge.FilesDirName)
+	if dir == ch.Path && pl.ownedByPull(f.Name) {
+		dir = filepath.Join(ch.Path, pl.opts.Paths.Files)
 	}
 	target := filepath.Join(dir, f.Name)
 	if pl.opts.DryRun {
@@ -110,10 +110,10 @@ func (pl *puller) downloadOne(ctx context.Context, ch *challenge.Challenge, f pl
 
 func (pl *puller) filesDir(ch *challenge.Challenge) string {
 	if exists(ch.Path) || pl.opts.Template == nil {
-		return ch.FilesDir()
+		return ch.FilesDir(pl.opts.Paths.Files)
 	}
-	if info, err := os.Stat(filepath.Join(pl.opts.Template.Path, challenge.FilesDirName)); err == nil && info.IsDir() {
-		return filepath.Join(ch.Path, challenge.FilesDirName)
+	if info, err := os.Stat(filepath.Join(pl.opts.Template.Path, pl.opts.Paths.Files)); err == nil && info.IsDir() {
+		return filepath.Join(ch.Path, pl.opts.Paths.Files)
 	}
 	return ch.Path
 }
@@ -151,8 +151,8 @@ func (pl *puller) rel(path string) string {
 	return path
 }
 
-func ownedByPull(name string) bool {
-	return name == challenge.ReadmeName || name == challenge.FileName
+func (pl *puller) ownedByPull(name string) bool {
+	return name == pl.opts.Paths.Readme || name == challenge.FileName || name == challenge.LocalFileName
 }
 
 func sameContent(a, b string) (bool, error) {

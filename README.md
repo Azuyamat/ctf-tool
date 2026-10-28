@@ -94,9 +94,10 @@ The token is made in CTFd under **Settings → Access Tokens**. If an instance d
 | `ctf open -w` | Open the challenge's page on the CTFd site in the browser. |
 | `ctf last` | Print the path of the last created challenge. |
 | `ctf templates` | List templates and which ones override others. |
-| `ctf config list` | Show all settings. |
-| `ctf config get <key>` | Print a setting. |
-| `ctf config set <key> <value>` | Change a setting. |
+| `ctf config list` | Show the settings in use and where each comes from: `default`, `global` or the event. |
+| `ctf config get <key>` | Print the setting in use. `--event` prints the current event's own value. |
+| `ctf config set <key> <value>` | Change a setting. `--event` (`-e`) changes it for the current event only. |
+| `ctf config unset <key>` | Reset a setting to its default. `--event` removes the event's value so the global one applies. |
 | `ctf init <shell>` | Print shell setup for `ctf cd` and completion: `bash`, `zsh` or `fish`. |
 | `ctf completion <shell>` | Print only the completion script. |
 | `ctf version` | Print the version. |
@@ -133,7 +134,7 @@ Downloads are listed newest first; hidden files and unfinished downloads (`.part
 
 ## Pull
 
-`ctf pull` creates a folder for each challenge on the event's CTFd at `<category>/<name>`, using the default template like `ctf new`. When two names would get the same folder, the second gets `-<id>` added. A folder you made yourself with `ctf new` at that path is linked instead.
+`ctf pull` creates a folder for each challenge on the event's CTFd at `<category>/<name>`, using the default template like `ctf new`. When two names would get the same folder, the second gets `-<id>` added. A folder that already exists at that path is linked instead, whether you made it with `ctf new`, by hand, or got it from a teammate's git repo.
 
 Each run reports what happened:
 
@@ -150,13 +151,13 @@ Challenge files are downloaded into the challenge's `dist/` folder (the `filesDi
 
 ### Solves
 
-Pull also asks CTFd which challenges your team has solved. A challenge solved on the site, by you or a teammate, is marked solved with the time it was solved. `ctf ls` shows teammates' solves as `✓ team`, and `ctf info` names who solved it. `ctf pull --status` does only this part, so it's quick to run often.
+Pull also asks CTFd which challenges your team has solved. A challenge solved on the site, by you or a teammate, is marked solved with the time it was solved. `ctf ls` shows a teammate's solve with their name, and `ctf info` says who solved it. `ctf pull --status` does only this part, so it's quick to run often.
 
 A local solve is never undone. If you recorded a flag with `ctf flag` and the server doesn't have it as solved, pull marks it with `?` and keeps it.
 
 ### What pull writes
 
-Apart from downloaded files, pull only writes `.ctf.json` and `README.md`. `README.md` is regenerated from the server, so keep notes in another file, or set `readmeName` to have pull write somewhere else, like `CHALLENGE.md`. Everything else, like `solve.py`, is never touched after the folder is created.
+Apart from downloaded files, pull only writes `.ctf.json`, `.ctf.local.json` and `README.md`. `README.md` is regenerated from the server, so keep notes in another file, or set `readmeName` to have pull write somewhere else, like `CHALLENGE.md`. Everything else, like `solve.py`, is never touched after the folder is created.
 
 `README.md` links to the challenge on the CTFd site; `ctf open -w` opens that link.
 
@@ -172,7 +173,7 @@ Before submitting, it refuses a flag that:
 - doesn't match the event's `--flag-format` (the whole flag must match)
 - was already submitted and rejected
 
-On a challenge with limited attempts it asks before using the last one, and refuses when none are left. `-f` skips all of these. Every submission and its result is kept under `submissions` in `.ctf.json`. Incorrect flags exit with an error, so `submit` works in scripts.
+On a challenge with limited attempts it asks before using the last one, and refuses when none are left. `-f` skips all of these. Every submission and its result is kept under `submissions` in `.ctf.local.json`. Incorrect flags exit with an error, so `submit` works in scripts.
 
 | Result | |
 |---|---|
@@ -181,6 +182,19 @@ On a challenge with limited attempts it asks before using the last one, and refu
 | incorrect | Shows the attempts left. |
 | no attempts left / rate limited | Told apart by the attempt count; wait and retry when rate limited. |
 | paused | The CTF is paused. |
+
+## Teamwork with git
+
+An event folder can be a git repo the whole team shares. `ctf event` writes a `.gitignore` there (unless there already is one) that leaves out `.ctf.local.json` and unfinished downloads.
+
+```sh
+cd ~/ctf/nightfall && git init && git add -A && git commit -m "pull"   # one teammate
+git clone <repo> ~/ctf/nightfall && ctf event nightfall && ctf login    # everyone else
+```
+
+Everyone can then `ctf pull` and commit. What pull writes is the same for every member: `.ctf.json` names who solved a challenge by their CTFd username, and `ctf` works out from your login whether that was you. Your submissions, attempts and which files you downloaded stay in `.ctf.local.json`. A clone without them downloads each file once to check it matches, then records it.
+
+`.ctf.json` holds flags, so keep the repo private until the event is over.
 
 ## Templates
 
@@ -225,8 +239,16 @@ from pwn import *
 | `downloadDir` | `~/Downloads` | Where `grab` looks for files |
 | `editor` | empty | Command `ctf open` runs, e.g. `code` or `nvim`. Empty uses `$EDITOR` |
 | `defaultTemplate` | `default` | Template for `new` and `pull` when no `-t` is given. Only `default` may be missing |
-| `readmeName` | `README.md` | File `pull` writes the challenge description to |
-| `filesDir` | `dist` | Folder in a challenge that `grab` and `pull` put files into |
+| `readmeName` | `README.md` | File `pull` writes the challenge description to. Per event |
+| `filesDir` | `dist` | Folder in a challenge that `grab` and `pull` put files into. Per event |
+
+`readmeName` and `filesDir` shape the event folder, so they're kept in its `.event.json` and a teammate who clones it gets the same layout. A new event copies the global values; after that, change them with `ctf config set --event`. Changing the global value only affects events created later and events that don't have their own value.
+
+```sh
+ctf config set readmeName CHALLENGE.md          # for new events
+ctf config set --event filesDir handout         # for the current event
+ctf config unset --event filesDir               # back to the global value
+```
 
 Changing `readmeName` leaves old READMEs in place; the next pull writes the new file next to them. Changing `filesDir` doesn't move files: ones already pulled are tracked by where they were saved and aren't downloaded again.
 
@@ -235,8 +257,9 @@ Changing `readmeName` leaves old READMEs in place; the next pull writes the new 
 | Config | `~/.config/ctf/config.json` (macOS: `~/Library/Application Support/ctf/config.json`) |
 | State (event, last challenge) | `$XDG_STATE_HOME/ctf/state.json`, default `~/.local/state/ctf/state.json` |
 | Logins (tokens and session cookies) | `$XDG_STATE_HOME/ctf/credentials.json`, readable only by you. `CTF_TOKEN` overrides it. Passwords are never stored. |
-| Event data (CTFd link) | `.event.json` inside each event folder |
-| Challenge data | `.ctf.json` inside each challenge folder |
+| Event data (CTFd link, flag format, `readmeName`, `filesDir`) | `.event.json` inside each event folder, shared with your team |
+| Challenge data | `.ctf.json` inside each challenge folder, shared with your team |
+| Your challenge data (submissions, downloads, attempts) | `.ctf.local.json` next to it, ignored by git |
 
 Output colors turn off when piped or when `NO_COLOR` is set.
 
