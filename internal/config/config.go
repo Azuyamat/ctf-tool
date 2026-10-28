@@ -12,6 +12,39 @@ type Config struct {
 }
 
 var Current *Config
+var Keys = []Key{
+	{
+		Name:        "baseDir",
+		Description: "Base directory for challenges",
+		Get: func(c *Config) string {
+			return c.BaseDir
+		},
+		Set: func(c *Config, value string) error {
+			c.BaseDir = value
+			return nil
+		},
+	},
+	{
+		Name:        "downloadDir",
+		Description: "Your default downloads directory",
+		Get: func(c *Config) string {
+			return c.DownloadDir
+		},
+		Set: func(c *Config, value string) error {
+			c.DownloadDir = value
+			return nil
+		},
+	},
+}
+
+func FindKey(name string) *Key {
+	for _, key := range Keys {
+		if key.Name == name {
+			return &key
+		}
+	}
+	return nil
+}
 
 func ConfigFolderPath() (string, error) {
 	dir, err := os.UserConfigDir()

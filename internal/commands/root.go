@@ -9,5 +9,6 @@ func Root() *command.RootCommand {
 		AddChild(cmdLast()).
 		AddChild(cmdTemplates()).
 		AddChild(cmdFlag()).
-		AddChild(cmdLs())
+		AddChild(cmdLs()).
+		AddChild(cmdConfig())
 }
