@@ -7,9 +7,8 @@ import (
 )
 
 type Config struct {
-	BaseDir      string
-	DownloadDir  string
-	CurrentEvent string
+	BaseDir     string
+	DownloadDir string
 }
 
 var Current *Config

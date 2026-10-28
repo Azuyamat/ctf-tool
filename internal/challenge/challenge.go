@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/state"
 )
 
 type Challenge struct {
@@ -18,6 +19,9 @@ type Challenge struct {
 
 func Root() (string, error) {
 	base := config.Current.BaseDir
+	if event := state.Current.Event; event != "" {
+		return filepath.Join(base, event), nil
+	}
 	return base, nil
 }
 
