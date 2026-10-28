@@ -17,6 +17,7 @@ import (
 
 func (c *cli) cmdGrab() command.Command {
 	return command.NewExecutableCommand("grab", "Grabs files from the downloads directory").
+		Group("Challenges").
 		Flags(
 			command.NewIntFlag("recent", "n", "Number of most recent downloads to preselect", 1),
 		).
@@ -37,7 +38,7 @@ func (c *cli) runGrab(ctx *command.Context, args command.ValidatedArgs) error {
 		return errors.New("no files in downloads directory")
 	}
 
-	n := args.FlagInt("recent")
+	n := command.FlagValue[int](args, "recent")
 	if n < 0 {
 		return errors.New("recent count cannot be negative")
 	}

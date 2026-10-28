@@ -9,6 +9,7 @@ import (
 
 func (c *cli) cmdTemplates() command.Command {
 	return command.NewExecutableCommand("templates", "List available challenge templates").
+		Group("Setup").
 		Handler(c.runTemplates)
 }
 

@@ -13,6 +13,13 @@ import (
 
 func (c *cli) cmdEvent() command.Command {
 	return command.NewExecutableCommand("event", "Show or set the current CTF event").
+		Group("Events").
+		Long("Show the current event, or switch to another one. New challenges are created under the current event's folder.\n\nLink an event to its CTFd instance with --ctfd to pull challenges and submit flags from the terminal.").
+		Example(
+			"ctf event picoctf-2026",
+			"# link the current event to its CTFd instance\nctf event --ctfd https://play.picoctf.org",
+			"ctf event --flag-format 'picoCTF\\{.+\\}'",
+		).
 		Args(
 			command.NewStringArg(
 				"name",
@@ -22,34 +29,30 @@ func (c *cli) cmdEvent() command.Command {
 		Flags(
 			command.NewBoolFlag("clear", "c", "Unset the current event", false),
 			command.NewStringFlag("ctfd", "", "Link the event to a CTFd instance URL", ""),
-			command.NewBoolFlag("insecure", "", "Allow a plain http URL", false),
+			command.NewBoolFlag("insecure", "", "Allow a plain http URL", false).Requires("ctfd"),
 			command.NewBoolFlag("unlink", "", "Remove the event's platform link", false),
 			command.NewStringFlag("flag-format", "", "Regular expression flags must match, e.g. 'picoCTF\\{.+\\}'", ""),
 			command.NewBoolFlag("no-flag-format", "", "Remove the event's flag format", false),
 		).
+		MutuallyExclusive("ctfd", "unlink").
+		MutuallyExclusive("flag-format", "no-flag-format").
 		Handler(c.runEvent)
 }
 
 func (c *cli) runEvent(ctx *command.Context, args command.ValidatedArgs) error {
-	if args.FlagBool("clear") {
+	if command.FlagValue[bool](args, "clear") {
 		c.State.Event = ""
 		ui.Successf("event cleared")
 		return nil
 	}
 
-	rawURL, unlink := args.FlagString("ctfd"), args.FlagBool("unlink")
-	if rawURL != "" && unlink {
-		return errors.New("--ctfd and --unlink cannot be used together")
-	}
-	format, noFormat := args.FlagString("flag-format"), args.FlagBool("no-flag-format")
-	if format != "" && noFormat {
-		return errors.New("--flag-format and --no-flag-format cannot be used together")
-	}
+	rawURL, unlink := command.FlagValue[string](args, "ctfd"), command.FlagValue[bool](args, "unlink")
+	format, noFormat := command.FlagValue[string](args, "flag-format"), command.FlagValue[bool](args, "no-flag-format")
 	editing := rawURL != "" || unlink || format != "" || noFormat
 
 	name := c.State.Event
 	if args.Has("name") {
-		name = args.String("name")
+		name = command.ArgValue[string](args, "name")
 	} else if !editing {
 		return c.printEventSummary()
 	} else if name == "" {
@@ -66,7 +69,7 @@ func (c *cli) runEvent(ctx *command.Context, args command.ValidatedArgs) error {
 
 	switch {
 	case rawURL != "":
-		if err := ev.Link(event.PlatformCTFd, rawURL, args.FlagBool("insecure")); err != nil {
+		if err := ev.Link(event.PlatformCTFd, rawURL, command.FlagValue[bool](args, "insecure")); err != nil {
 			return err
 		}
 		if err := ev.Save(); err != nil {

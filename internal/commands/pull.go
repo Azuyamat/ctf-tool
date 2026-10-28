@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -12,16 +11,26 @@ import (
 
 func (c *cli) cmdPull() command.Command {
 	return command.NewExecutableCommand("pull", "Create and update challenge folders from the event's platform").
+		Group("Events").
+		Long("Create a folder for each challenge on the event's platform, and bring the ones already pulled up to date, including which challenges are solved.").
+		Example(
+			"ctf pull",
+			"# see what would change first\nctf pull web pwn --dry-run",
+			"ctf pull --status",
+		).
 		Args(
-			command.NewStringArg("categories", "Only pull these categories").AsVariadic().AsOptional(),
+			command.NewStringArg("categories", "Only pull these categories").AsVariadic().AsOptional().Complete(c.completeCategories),
 		).
 		Flags(
 			command.NewBoolFlag("dry-run", "n", "Show what would change without writing anything", false),
 			command.NewBoolFlag("status", "s", "Only refresh which challenges are solved", false),
 			command.NewBoolFlag("free-hints", "", "Unlock hints that cost 0 points", false),
 			command.NewBoolFlag("no-files", "", "Don't download challenge files", false),
-			command.NewStringFlag("template", "t", "Template for new challenges (default: \"default\" if it exists)", ""),
+			command.NewStringFlag("template", "t", "Template for new challenges (default: \"default\" if it exists)", "").Complete(c.completeTemplates),
 		).
+		MutuallyExclusive("status", "free-hints").
+		MutuallyExclusive("status", "no-files").
+		MutuallyExclusive("status", "template").
 		Handler(c.runPull)
 }
 
@@ -34,16 +43,13 @@ func (c *cli) runPull(ctx *command.Context, args command.ValidatedArgs) error {
 	if err != nil {
 		return err
 	}
-	statusOnly := args.FlagBool("status")
-	if statusOnly && (args.FlagBool("free-hints") || args.FlagBool("no-files") || args.FlagString("template") != "") {
-		return errors.New("--status only refreshes solves, it can't be combined with --free-hints, --no-files or --template")
-	}
-	tmpl, err := c.resolveTemplate(args.FlagString("template"))
+	statusOnly := command.FlagValue[bool](args, "status")
+	tmpl, err := c.resolveTemplate(command.FlagValue[string](args, "template"))
 	if err != nil {
 		return err
 	}
 
-	dryRun := args.FlagBool("dry-run")
+	dryRun := command.FlagValue[bool](args, "dry-run")
 	if !dryRun && !statusOnly {
 		if err := ev.Create(); err != nil {
 			return err
@@ -54,10 +60,10 @@ func (c *cli) runPull(ctx *command.Context, args command.ValidatedArgs) error {
 		Root:       ev.Path,
 		Event:      ev.Name,
 		Template:   tmpl,
-		Categories: args.VariadicStrings("categories"),
+		Categories: command.ArgValue[[]string](args, "categories"),
 		DryRun:     dryRun,
-		FreeHints:  args.FlagBool("free-hints"),
-		NoFiles:    args.FlagBool("no-files"),
+		FreeHints:  command.FlagValue[bool](args, "free-hints"),
+		NoFiles:    command.FlagValue[bool](args, "no-files"),
 		StatusOnly: statusOnly,
 	})
 	if err != nil {

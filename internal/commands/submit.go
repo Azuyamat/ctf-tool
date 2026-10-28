@@ -17,17 +17,19 @@ import (
 
 func (c *cli) cmdSubmit() command.Command {
 	return command.NewExecutableCommand("submit", "Submit a flag for the current challenge to the event's platform").
+		Group("Challenges").
 		Args(
 			command.NewStringArg("flag", "Flag to submit"),
 		).
 		Flags(
 			command.NewBoolFlag("force", "f", "Skip the checks before submitting", false),
 		).
+		Example("ctf submit 'picoCTF{s0me_fl4g}'").
 		Handler(c.runSubmit)
 }
 
 func (c *cli) runSubmit(ctx *command.Context, args command.ValidatedArgs) error {
-	flag := args.String("flag")
+	flag := command.ArgValue[string](args, "flag")
 	if flag == "" {
 		return errors.New("flag cannot be empty")
 	}
@@ -54,7 +56,7 @@ func (c *cli) runSubmit(ctx *command.Context, args command.ValidatedArgs) error 
 	if err != nil {
 		return err
 	}
-	if !args.FlagBool("force") {
+	if !command.FlagValue[bool](args, "force") {
 		if err := checkSubmission(ev, ch, d, flag); err != nil {
 			return err
 		}

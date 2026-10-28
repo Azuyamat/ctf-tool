@@ -9,6 +9,7 @@ import (
 
 func (c *cli) cmdLast() command.Command {
 	return command.NewExecutableCommand("last", "Show the last created challenge folder").
+		Group("Challenges").
 		Handler(c.runLast)
 }
 

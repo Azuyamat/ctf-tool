@@ -89,8 +89,18 @@ The token is made in CTFd under **Settings → Access Tokens**. If an instance d
 | `ctf config get <key>` | Print a setting. |
 | `ctf config set <key> <value>` | Change a setting. |
 | `ctf version` | Print the version. |
+| `ctf completion <shell>` | Print a completion script for `bash`, `zsh` or `fish`. |
 
-Run `ctf` for the command list and `ctf <command> --help` for its options.
+Run `ctf` for the command list and `ctf <command> --help` for its options and examples.
+
+### Shell completion
+
+Completion covers commands, flags, config keys, template names and the categories in the current event.
+
+```bash
+source <(ctf completion bash)   # add to ~/.bashrc; for zsh use "zsh" and ~/.zshrc
+ctf completion fish | source    # add to ~/.config/fish/config.fish
+```
 
 **Current challenge** is the one containing your working directory. `flag`, `info`, `submit` and `hint` also fall back to the last created challenge; `grab` and `open` don't.
 

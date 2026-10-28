@@ -13,6 +13,7 @@ import (
 
 func (c *cli) cmdOpen() command.Command {
 	return command.NewExecutableCommand("open", "Open the current challenge in $EDITOR").
+		Group("Challenges").
 		Flags(
 			command.NewBoolFlag("web", "w", "Open the challenge's page on the CTF site instead", false),
 		).
@@ -24,7 +25,7 @@ func (c *cli) runOpen(ctx *command.Context, args command.ValidatedArgs) error {
 	if err != nil {
 		return err
 	}
-	if args.FlagBool("web") {
+	if command.FlagValue[bool](args, "web") {
 		if ch.Remote == nil || ch.Remote.URL == "" {
 			return fmt.Errorf("%s has no link, run ctf pull to get one", c.shortPath(ch.Path))
 		}

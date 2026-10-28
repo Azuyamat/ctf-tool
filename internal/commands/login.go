@@ -23,17 +23,25 @@ const maxTokenSize = 4096
 
 func (c *cli) cmdLogin() command.Command {
 	return command.NewExecutableCommand("login", "Log in to the current event's platform with an access token").
+		Group("Events").
+		Example(
+			"ctf login",
+			"# for instances where tokens don't work\nctf login --session -u alice",
+			"echo \"$CTFD_TOKEN\" | ctf login --token-stdin",
+		).
 		Flags(
 			command.NewBoolFlag("token-stdin", "", "Read the token, cookie or password from stdin instead of prompting", false),
 			command.NewBoolFlag("session", "", "Log in with a username and password, for instances where tokens don't work", false),
-			command.NewStringFlag("user", "u", "Username for --session", ""),
+			command.NewStringFlag("user", "u", "Username for --session", "").Requires("session"),
 			command.NewBoolFlag("cookie", "", "Use a session cookie copied from the browser", false),
 		).
+		MutuallyExclusive("session", "cookie").
 		Handler(c.runLogin)
 }
 
 func (c *cli) cmdLogout() command.Command {
 	return command.NewExecutableCommand("logout", "Remove the stored login for the current event's platform").
+		Group("Events").
 		Handler(c.runLogout)
 }
 
@@ -43,20 +51,14 @@ func (c *cli) runLogin(ctx *command.Context, args command.ValidatedArgs) error {
 		return err
 	}
 
-	session, cookie := args.FlagBool("session"), args.FlagBool("cookie")
-	if session && cookie {
-		return errors.New("--session and --cookie cannot be used together")
-	}
-	if args.FlagString("user") != "" && !session {
-		return errors.New("--user only works with --session")
-	}
-	fromStdin := args.FlagBool("token-stdin")
+	session, cookie := command.FlagValue[bool](args, "session"), command.FlagValue[bool](args, "cookie")
+	fromStdin := command.FlagValue[bool](args, "token-stdin")
 
 	var auth platform.Auth
 	var readErr error
 	switch {
 	case session:
-		auth.Session, readErr = sessionLogin(ctx.Context(), ev, args.FlagString("user"), fromStdin, c.Version)
+		auth.Session, readErr = sessionLogin(ctx.Context(), ev, command.FlagValue[string](args, "user"), fromStdin, c.Version)
 	case cookie:
 		auth.Session, readErr = readSecret(fmt.Sprintf("Session cookie (the value of the session cookie for %s): ", ev.Platform.Host()), "cookie", fromStdin)
 		auth.Session = strings.TrimPrefix(auth.Session, "session=")

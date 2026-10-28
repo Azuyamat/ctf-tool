@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
 	"runtime/debug"
 
 	"github.com/azuyamat/ctf/internal/app"
 	"github.com/azuyamat/ctf/internal/commands"
 	"github.com/azuyamat/ctf/internal/ui"
+	"github.com/azuyamat/gear/command"
 )
 
 var version = "dev"
@@ -24,7 +27,7 @@ func buildVersion() string {
 func main() {
 	if err := run(); err != nil {
 		ui.Error(err)
-		os.Exit(1)
+		os.Exit(command.ExitCode(err))
 	}
 }
 
@@ -34,7 +37,10 @@ func run() error {
 		return err
 	}
 
-	if err := commands.Root(a).Run(os.Args[1:]); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	if err := commands.Root(a).RunContext(ctx, os.Args[1:]); err != nil {
 		return err
 	}
 

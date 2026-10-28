@@ -6,6 +6,7 @@ import (
 
 	"github.com/azuyamat/ctf/internal/app"
 	"github.com/azuyamat/ctf/internal/fsutil"
+	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
@@ -15,23 +16,26 @@ type cli struct {
 
 func Root(a *app.App) *command.RootCommand {
 	c := &cli{a}
-	return command.NewRootCommand("ctf", "Manage CTF challenges effortlessly").
-		AddChild(c.cmdNew()).
+	root := command.NewRootCommand("ctf", "Manage CTF challenges effortlessly").
+		Version(a.Version).
+		HelpFunc(ui.Help(a.Version)).
 		AddChild(c.cmdEvent()).
-		AddChild(c.cmdLast()).
-		AddChild(c.cmdTemplates()).
-		AddChild(c.cmdFlag()).
-		AddChild(c.cmdLs()).
-		AddChild(c.cmdInfo()).
-		AddChild(c.cmdConfig()).
-		AddChild(c.cmdGrab()).
-		AddChild(c.cmdOpen()).
+		AddChild(c.cmdPull()).
 		AddChild(c.cmdLogin()).
 		AddChild(c.cmdLogout()).
-		AddChild(c.cmdPull()).
+		AddChild(c.cmdNew()).
+		AddChild(c.cmdLs()).
+		AddChild(c.cmdInfo()).
+		AddChild(c.cmdOpen()).
+		AddChild(c.cmdGrab()).
 		AddChild(c.cmdHint()).
+		AddChild(c.cmdFlag()).
 		AddChild(c.cmdSubmit()).
+		AddChild(c.cmdLast()).
+		AddChild(c.cmdTemplates()).
+		AddChild(c.cmdConfig()).
 		AddChild(cmdVersion(a.Version))
+	return root.AddChild(root.CompletionCommand().Group("Setup"))
 }
 
 func (c *cli) shortPath(path string) string {

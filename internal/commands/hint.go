@@ -15,6 +15,7 @@ import (
 
 func (c *cli) cmdHint() command.Command {
 	return command.NewExecutableCommand("hint", "List the current challenge's hints, or show and unlock one").
+		Group("Challenges").
 		Args(
 			command.NewIntArg("number", "Hint to show or unlock, as listed").AsOptional(),
 		).
@@ -65,14 +66,14 @@ func (c *cli) runHint(ctx *command.Context, args command.ValidatedArgs) error {
 		return c.saveHints(ch, hints)
 	}
 
-	n := args.Int("number")
+	n := command.ArgValue[int](args, "number")
 	if n < 1 || n > len(hints) {
 		return fmt.Errorf("no hint %d, %s has %d", n, c.shortPath(ch.Path), len(hints))
 	}
 	h := hints[n-1]
 
 	if !h.Unlocked {
-		if h.Cost > 0 && !args.FlagBool("yes") {
+		if h.Cost > 0 && !command.FlagValue[bool](args, "yes") {
 			me, err := p.Me(ctx.Context())
 			if err != nil {
 				return err

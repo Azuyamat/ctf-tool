@@ -10,6 +10,7 @@ import (
 
 func (c *cli) cmdFlag() command.Command {
 	return command.NewExecutableCommand("flag", "Show or set the flag of the current challenge").
+		Group("Challenges").
 		Args(
 			command.NewStringArg(
 				"flag",
@@ -34,7 +35,7 @@ func (c *cli) runFlag(ctx *command.Context, args command.ValidatedArgs) error {
 		return nil
 	}
 
-	flag := args.String("flag")
+	flag := command.ArgValue[string](args, "flag")
 	if flag == "" {
 		return errors.New("flag cannot be empty")
 	}

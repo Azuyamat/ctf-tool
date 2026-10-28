@@ -26,6 +26,7 @@ var (
 
 func (c *cli) cmdInfo() command.Command {
 	return command.NewExecutableCommand("info", "Show the current challenge's details and description").
+		Group("Challenges").
 		Handler(c.runInfo)
 }
 

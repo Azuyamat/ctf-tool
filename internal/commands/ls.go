@@ -20,8 +20,10 @@ const (
 
 func (c *cli) cmdLs() command.Command {
 	return command.NewExecutableCommand("ls", "List challenges in the current event, or all if none is set").
+		Group("Challenges").
+		Aliases("list").
 		Args(
-			command.NewStringArg("category", "Only list this category").AsOptional(),
+			command.NewStringArg("category", "Only list this category").AsOptional().Complete(c.completeCategories),
 		).
 		Flags(
 			command.NewBoolFlag("unsolved", "u", "Only list unsolved challenges", false),
@@ -50,7 +52,7 @@ func (c *cli) runLs(ctx *command.Context, args command.ValidatedArgs) error {
 
 	entries := listEntries(root, challenges)
 	if args.Has("category") {
-		want := args.String("category")
+		want := command.ArgValue[string](args, "category")
 		entries = slices.DeleteFunc(entries, func(e listed) bool {
 			return !strings.EqualFold(e.category, want) && !strings.EqualFold(e.ch.Category(), want)
 		})
@@ -67,7 +69,7 @@ func (c *cli) runLs(ctx *command.Context, args command.ValidatedArgs) error {
 	}
 	ui.Println(header + "  " + progressLine(shown, true))
 
-	if args.FlagBool("unsolved") {
+	if command.FlagValue[bool](args, "unsolved") {
 		entries = slices.DeleteFunc(entries, func(e listed) bool { return e.ch.IsSolved() })
 		if len(entries) == 0 {
 			ui.Println()

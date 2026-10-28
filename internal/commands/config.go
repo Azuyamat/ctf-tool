@@ -10,6 +10,7 @@ import (
 
 func (c *cli) cmdConfig() command.Command {
 	return command.NewSubcommand("config", "Manage configuration").
+		Group("Setup").
 		AddChild(c.cmdConfigSet()).
 		AddChild(c.cmdConfigGet()).
 		AddChild(c.cmdConfigList())
@@ -18,7 +19,7 @@ func (c *cli) cmdConfig() command.Command {
 func (c *cli) cmdConfigSet() command.Command {
 	return command.NewExecutableCommand("set", "Set a configuration value").
 		Args(
-			command.NewStringArg("key", "Configuration key to set"),
+			command.NewStringArg("key", "Configuration key to set").Complete(completeConfigKeys),
 			command.NewStringArg("value", "Value to set for the configuration key"),
 		).
 		Handler(c.runConfigSet)
@@ -27,7 +28,7 @@ func (c *cli) cmdConfigSet() command.Command {
 func (c *cli) cmdConfigGet() command.Command {
 	return command.NewExecutableCommand("get", "Get a configuration value").
 		Args(
-			command.NewStringArg("key", "Configuration key to get"),
+			command.NewStringArg("key", "Configuration key to get").Complete(completeConfigKeys),
 		).
 		Handler(c.runConfigGet)
 }
@@ -35,6 +36,14 @@ func (c *cli) cmdConfigGet() command.Command {
 func (c *cli) cmdConfigList() command.Command {
 	return command.NewExecutableCommand("list", "List all configuration values").
 		Handler(c.runConfigList)
+}
+
+func completeConfigKeys(*command.Context, command.ValidatedArgs, string) []string {
+	out := make([]string, len(config.Keys))
+	for i, key := range config.Keys {
+		out[i] = key.Name + "\t" + key.Description
+	}
+	return out
 }
 
 func findKey(name string) (*config.Key, error) {
@@ -46,12 +55,12 @@ func findKey(name string) (*config.Key, error) {
 }
 
 func (c *cli) runConfigSet(ctx *command.Context, args command.ValidatedArgs) error {
-	key, err := findKey(args.String("key"))
+	key, err := findKey(command.ArgValue[string](args, "key"))
 	if err != nil {
 		return err
 	}
 
-	if err := key.Set(c.Config, args.String("value")); err != nil {
+	if err := key.Set(c.Config, command.ArgValue[string](args, "value")); err != nil {
 		return err
 	}
 	if err := c.Config.Save(); err != nil {
@@ -63,7 +72,7 @@ func (c *cli) runConfigSet(ctx *command.Context, args command.ValidatedArgs) err
 }
 
 func (c *cli) runConfigGet(ctx *command.Context, args command.ValidatedArgs) error {
-	key, err := findKey(args.String("key"))
+	key, err := findKey(command.ArgValue[string](args, "key"))
 	if err != nil {
 		return err
 	}
