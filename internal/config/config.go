@@ -2,13 +2,19 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/azuyamat/ctf/internal/fsutil"
 )
 
 type Config struct {
-	BaseDir     string
-	DownloadDir string
+	BaseDir     string `json:"baseDir"`
+	DownloadDir string `json:"downloadDir"`
 }
 
 var Current *Config
@@ -20,7 +26,11 @@ var Keys = []Key{
 			return c.BaseDir
 		},
 		Set: func(c *Config, value string) error {
-			c.BaseDir = value
+			path, err := NormalizePath(value)
+			if err != nil {
+				return err
+			}
+			c.BaseDir = path
 			return nil
 		},
 	},
@@ -31,19 +41,38 @@ var Keys = []Key{
 			return c.DownloadDir
 		},
 		Set: func(c *Config, value string) error {
-			c.DownloadDir = value
+			path, err := NormalizePath(value)
+			if err != nil {
+				return err
+			}
+			c.DownloadDir = path
 			return nil
 		},
 	},
 }
 
 func FindKey(name string) *Key {
-	for _, key := range Keys {
-		if key.Name == name {
-			return &key
+	for i := range Keys {
+		if Keys[i].Name == name {
+			return &Keys[i]
 		}
 	}
 	return nil
+}
+
+// NormalizePath expands a leading ~ and returns the absolute, cleaned path.
+func NormalizePath(path string) (string, error) {
+	if path == "" {
+		return "", errors.New("path cannot be empty")
+	}
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		path = filepath.Join(home, path[1:])
+	}
+	return filepath.Abs(path)
 }
 
 func ConfigFolderPath() (string, error) {
@@ -52,32 +81,6 @@ func ConfigFolderPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "ctf"), nil
-}
-
-func LoadOrCreateConfig() (*Config, error) {
-	err := createConfigFolderIfNotExists()
-	if err != nil {
-		return nil, err
-	}
-
-	config, err := loadConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	return config, nil
-}
-
-func createConfigFolderIfNotExists() error {
-	path, err := ConfigFolderPath()
-	if err != nil {
-		return err
-	}
-	_, err = os.Stat(path)
-	if os.IsNotExist(err) {
-		return os.MkdirAll(path, 0755)
-	}
-	return err
 }
 
 func configFilePath() (string, error) {
@@ -99,29 +102,36 @@ func defaultConfig() (*Config, error) {
 	}, nil
 }
 
-func loadConfig() (*Config, error) {
+// LoadOrCreateConfig loads the config file, writing the defaults if it does not exist.
+// Keys missing from the file keep their default values.
+func LoadOrCreateConfig() (*Config, error) {
 	path, err := configFilePath()
+	if err != nil {
+		return nil, err
+	}
+	config, err := defaultConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		config, err := defaultConfig()
-		if err != nil {
-			return nil, err
-		}
+	if errors.Is(err, fs.ErrNotExist) {
 		return config, config.Save()
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read config %s: %w", path, err)
+	}
+	if err := json.Unmarshal(data, config); err != nil {
+		return nil, fmt.Errorf("parse config %s: %w", path, err)
 	}
 
-	var config Config
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, err
+	// Re-set every key so hand-edited values get normalized too.
+	for _, key := range Keys {
+		if err := key.Set(config, key.Get(config)); err != nil {
+			return nil, fmt.Errorf("config %s: %s: %w", path, key.Name, err)
+		}
 	}
-	return &config, nil
+	return config, nil
 }
 
 func (c *Config) Save() error {
@@ -129,9 +139,8 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(c, "", "  ")
-	if err != nil {
-		return err
+	if err := fsutil.WriteJSON(path, c); err != nil {
+		return fmt.Errorf("write config %s: %w", path, err)
 	}
-	return os.WriteFile(path, data, 0644)
+	return nil
 }

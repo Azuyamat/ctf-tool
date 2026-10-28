@@ -7,11 +7,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/azuyamat/ctf/internal/config"
-	"github.com/azuyamat/ctf/internal/state"
+	"github.com/azuyamat/ctf/internal/fsutil"
 	"github.com/azuyamat/ctf/internal/template"
 )
 
@@ -25,33 +25,24 @@ type Challenge struct {
 	Solved  time.Time `json:"solved,omitzero"`
 }
 
-func Root() (string, error) {
-	base := config.Current.BaseDir
-	if event := state.Current.Event; event != "" {
-		return filepath.Join(base, event), nil
-	}
-	return base, nil
+// Root is the folder challenges are created in: the event folder when an event is set.
+func Root(base, event string) string {
+	return filepath.Join(base, event)
 }
 
-func New(name string) (*Challenge, error) {
-	root, err := Root()
-	if err != nil {
-		return nil, err
-	}
-
-	path := filepath.Join(root, name)
-	if !strings.HasPrefix(path, root+string(filepath.Separator)) {
+func New(root, name string) (*Challenge, error) {
+	root = filepath.Clean(root)
+	rel, ok := fsutil.Within(root, filepath.Join(root, name))
+	if !ok {
 		return nil, fmt.Errorf("invalid challenge name: %s", name)
 	}
-
-	rel, _ := filepath.Rel(root, path)
-	if strings.SplitN(rel, string(filepath.Separator), 2)[0] == template.DirName {
+	if slices.Contains(strings.Split(rel, string(filepath.Separator)), template.DirName) {
 		return nil, fmt.Errorf("challenge name is reserved: %s", name)
 	}
 
 	return &Challenge{
-		Name:    name,
-		Path:    path,
+		Name:    rel,
+		Path:    filepath.Join(root, rel),
 		Created: time.Now(),
 	}, nil
 }
@@ -84,9 +75,12 @@ func (c *Challenge) Create(tmpl *template.Template) error {
 	return nil
 }
 
+// SetFlag records the flag. The solve time is kept from the first time a flag was set.
 func (c *Challenge) SetFlag(flag string) {
 	c.Flag = flag
-	c.Solved = time.Now()
+	if c.Solved.IsZero() {
+		c.Solved = time.Now()
+	}
 }
 
 func (c *Challenge) configFilePath() string {
@@ -99,17 +93,13 @@ func (c *Challenge) Load() error {
 		return fmt.Errorf("read config file: %w", err)
 	}
 	if err := json.Unmarshal(data, c); err != nil {
-		return fmt.Errorf("unmarshal config: %w", err)
+		return fmt.Errorf("unmarshal config %s: %w", c.configFilePath(), err)
 	}
 	return nil
 }
 
 func (c *Challenge) Save() error {
-	data, err := json.Marshal(c)
-	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
-	}
-	if err := os.WriteFile(c.configFilePath(), data, 0644); err != nil {
+	if err := fsutil.WriteJSON(c.configFilePath(), c); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 	return nil
@@ -117,12 +107,12 @@ func (c *Challenge) Save() error {
 
 var ErrNotFound = errors.New("not inside a challenge")
 
-// LoadFromPath finds the challenge containing path by walking up to the base dir.
-// It is bounded by the base dir rather than Root so it works across events.
-func LoadFromPath(path string) (*Challenge, error) {
-	base := filepath.Clean(config.Current.BaseDir)
+// LoadFromPath finds the challenge containing path by walking up to base.
+// It is bounded by base rather than Root so it works across events.
+func LoadFromPath(base, path string) (*Challenge, error) {
+	base = filepath.Clean(base)
 	path = filepath.Clean(path)
-	if !strings.HasPrefix(path, base+string(filepath.Separator)) {
+	if _, ok := fsutil.Within(base, path); !ok {
 		return nil, fmt.Errorf("%w: %s", ErrNotFound, path)
 	}
 
@@ -140,34 +130,33 @@ func LoadFromPath(path string) (*Challenge, error) {
 
 // LoadCurrent loads the challenge containing the working directory, falling
 // back to the last created challenge.
-func LoadCurrent() (*Challenge, error) {
+func LoadCurrent(base, last string) (*Challenge, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("get current dir: %w", err)
 	}
 
-	ch, err := LoadFromPath(cwd)
-	if !errors.Is(err, ErrNotFound) || state.Current.LastChallenge == "" {
+	ch, err := LoadFromPath(base, cwd)
+	if !errors.Is(err, ErrNotFound) || last == "" {
 		return ch, err
 	}
-	return LoadFromPath(state.Current.LastChallenge)
+	return LoadFromPath(base, last)
 }
 
-func ListChallenges() ([]*Challenge, error) {
-	root, err := Root()
-	if err != nil {
-		return nil, err
-	}
-
+// ListChallenges returns the challenges under root. A missing root has none.
+func ListChallenges(root string) ([]*Challenge, error) {
 	var challenges []*Challenge
-	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			if path == root && errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
 			return err
 		}
 		if !d.IsDir() {
 			return nil
 		}
-		if d.Name() == template.DirName {
+		if path != root && d.Name() == template.DirName {
 			return filepath.SkipDir
 		}
 		challenge := &Challenge{Path: path}

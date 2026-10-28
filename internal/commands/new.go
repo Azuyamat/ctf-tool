@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/azuyamat/ctf/internal/challenge"
+	"github.com/azuyamat/ctf/internal/config"
 	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/ctf/internal/template"
 	"github.com/azuyamat/gear/command"
@@ -25,8 +26,7 @@ func cmdNew() command.Command {
 }
 
 func runNew(ctx *command.Context, args command.ValidatedArgs) error {
-	challengeName := args.String("challenge")
-	ch, err := challenge.New(challengeName)
+	ch, err := challenge.New(challengeRoot(), args.String("challenge"))
 	if err != nil {
 		return err
 	}
@@ -36,8 +36,7 @@ func runNew(ctx *command.Context, args command.ValidatedArgs) error {
 		return err
 	}
 
-	err = ch.Create(tmpl)
-	if err != nil {
+	if err := ch.Create(tmpl); err != nil {
 		return err
 	}
 
@@ -55,11 +54,12 @@ func runNew(ctx *command.Context, args command.ValidatedArgs) error {
 // resolveTemplate finds the named template. With no name it falls back to the
 // default template, returning nil without error if there is none.
 func resolveTemplate(name string) (*template.Template, error) {
+	base, event := config.Current.BaseDir, state.Current.Event
 	if name != "" {
-		return template.Find(name)
+		return template.Find(base, event, name)
 	}
 
-	tmpl, err := template.Find(template.Default)
+	tmpl, err := template.Find(base, event, template.Default)
 	if errors.Is(err, template.ErrNotFound) {
 		return nil, nil
 	}

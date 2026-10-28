@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/fsutil"
 	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/ctf/internal/template"
 	"github.com/azuyamat/gear/command"
@@ -58,7 +58,7 @@ func runEvent(ctx *command.Context, args command.ValidatedArgs) error {
 }
 
 func validateEventName(name string) error {
-	if name == "" || name == "." || name == ".." || strings.ContainsRune(name, filepath.Separator) {
+	if !fsutil.ValidName(name) {
 		return fmt.Errorf("invalid event name: %s", name)
 	}
 	if name == template.DirName {

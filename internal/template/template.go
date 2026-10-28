@@ -6,10 +6,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/azuyamat/ctf/internal/config"
-	"github.com/azuyamat/ctf/internal/state"
+	"github.com/azuyamat/ctf/internal/fsutil"
 )
 
 const (
@@ -31,28 +29,20 @@ type source struct {
 }
 
 // sources returns template directories in lookup order, event first.
-func sources() []source {
-	base := config.Current.BaseDir
+func sources(base, event string) []source {
 	var srcs []source
-	if event := state.Current.Event; event != "" {
+	if event != "" {
 		srcs = append(srcs, source{scope: "event", dir: filepath.Join(base, event, DirName)})
 	}
 	return append(srcs, source{scope: "global", dir: filepath.Join(base, DirName)})
 }
 
-func ValidateName(name string) error {
-	if name == "" || name == "." || name == ".." || strings.ContainsRune(name, filepath.Separator) {
-		return fmt.Errorf("invalid template name: %s", name)
-	}
-	return nil
-}
-
-func Find(name string) (*Template, error) {
-	if err := ValidateName(name); err != nil {
-		return nil, err
+func Find(base, event, name string) (*Template, error) {
+	if !fsutil.ValidName(name) {
+		return nil, fmt.Errorf("invalid template name: %s", name)
 	}
 
-	for _, src := range sources() {
+	for _, src := range sources(base, event) {
 		path := filepath.Join(src.dir, name)
 		info, err := os.Stat(path)
 		if errors.Is(err, fs.ErrNotExist) {
@@ -69,10 +59,10 @@ func Find(name string) (*Template, error) {
 }
 
 // List returns all available templates, with event templates shadowing global ones.
-func List() ([]Template, error) {
+func List(base, event string) ([]Template, error) {
 	seen := make(map[string]bool)
 	var templates []Template
-	for _, src := range sources() {
+	for _, src := range sources(base, event) {
 		entries, err := os.ReadDir(src.dir)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue

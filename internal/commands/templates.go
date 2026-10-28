@@ -5,6 +5,8 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/ctf/internal/template"
 	"github.com/azuyamat/gear/command"
 )
@@ -15,7 +17,7 @@ func cmdTemplates() command.Command {
 }
 
 func runTemplates(ctx *command.Context, args command.ValidatedArgs) error {
-	templates, err := template.List()
+	templates, err := template.List(config.Current.BaseDir, state.Current.Event)
 	if err != nil {
 		return err
 	}

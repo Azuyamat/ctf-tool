@@ -33,9 +33,6 @@ func run() error {
 		return err
 	}
 
-	if err := config.Current.Save(); err != nil {
-		return err
-	}
-
+	// Config is saved by the commands that change it; state changes on most runs.
 	return state.Current.Save()
 }

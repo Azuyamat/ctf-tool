@@ -1,8 +1,8 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
-	"os"
 
 	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/gear/command"
@@ -13,7 +13,12 @@ func cmdLast() command.Command {
 		Handler(runLast)
 }
 
+// runLast fails rather than printing a message when there is no last challenge,
+// so `cd "$(ctf last)"` never sees non-path output.
 func runLast(ctx *command.Context, args command.ValidatedArgs) error {
-	fmt.Fprintf(os.Stdout, "%s\n", state.Current.LastChallenge)
+	if state.Current.LastChallenge == "" {
+		return errors.New("no challenge created yet")
+	}
+	fmt.Println(state.Current.LastChallenge)
 	return nil
 }

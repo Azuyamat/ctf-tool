@@ -2,13 +2,18 @@ package commands
 
 import (
 	"fmt"
+	"os"
+	"text/tabwriter"
 
 	"github.com/azuyamat/ctf/internal/config"
 	"github.com/azuyamat/gear/command"
 )
 
 func cmdConfig() command.Command {
-	return command.NewSubcommand("config", "Manage configuration").AddChild(cmdConfigSet()).AddChild(cmdConfigGet()).AddChild(cmdConfigList())
+	return command.NewSubcommand("config", "Manage configuration").
+		AddChild(cmdConfigSet()).
+		AddChild(cmdConfigGet()).
+		AddChild(cmdConfigList())
 }
 
 func cmdConfigSet() command.Command {
@@ -33,40 +38,45 @@ func cmdConfigList() command.Command {
 		Handler(runConfigList)
 }
 
-func runConfigSet(ctx *command.Context, args command.ValidatedArgs) error {
-	key := args.String("key")
-	value := args.String("value")
-
-	keyDef := config.FindKey(key)
-	if keyDef == nil {
-		return fmt.Errorf("unknown configuration key: %s", key)
+func findKey(name string) (*config.Key, error) {
+	key := config.FindKey(name)
+	if key == nil {
+		return nil, fmt.Errorf("unknown configuration key: %s", name)
 	}
+	return key, nil
+}
 
-	if err := keyDef.Set(config.Current, value); err != nil {
+func runConfigSet(ctx *command.Context, args command.ValidatedArgs) error {
+	key, err := findKey(args.String("key"))
+	if err != nil {
 		return err
 	}
 
-	fmt.Printf("configuration key '%s' set to '%s'\n", key, value)
+	if err := key.Set(config.Current, args.String("value")); err != nil {
+		return err
+	}
+	if err := config.Current.Save(); err != nil {
+		return err
+	}
+
+	fmt.Printf("configuration key '%s' set to '%s'\n", key.Name, key.Get(config.Current))
 	return nil
 }
 
 func runConfigGet(ctx *command.Context, args command.ValidatedArgs) error {
-	key := args.String("key")
-
-	keyDef := config.FindKey(key)
-	if keyDef == nil {
-		return fmt.Errorf("unknown configuration key: %s", key)
+	key, err := findKey(args.String("key"))
+	if err != nil {
+		return err
 	}
 
-	value := keyDef.Get(config.Current)
-	fmt.Printf("%s\n", value)
+	fmt.Println(key.Get(config.Current))
 	return nil
 }
 
 func runConfigList(ctx *command.Context, args command.ValidatedArgs) error {
-	for _, keyDef := range config.Keys {
-		value := keyDef.Get(config.Current)
-		fmt.Printf("%s: %s\n", keyDef.Name, value)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	for _, key := range config.Keys {
+		fmt.Fprintf(w, "%s\t%s\t%s\n", key.Name, key.Get(config.Current), key.Description)
 	}
-	return nil
+	return w.Flush()
 }

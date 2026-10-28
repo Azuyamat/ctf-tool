@@ -1,10 +1,13 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/azuyamat/ctf/internal/challenge"
+	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/gear/command"
 )
 
@@ -20,36 +23,28 @@ func cmdFlag() command.Command {
 }
 
 func runFlag(ctx *command.Context, args command.ValidatedArgs) error {
+	ch, err := challenge.LoadCurrent(config.Current.BaseDir, state.Current.LastChallenge)
+	if err != nil {
+		return fmt.Errorf("load challenge: %w", err)
+	}
+
 	if !args.Has("flag") {
-		challenge, err := getCurrentChallenge()
-		if err != nil {
-			return err
-		}
-		if challenge.Flag == "" {
-			fmt.Fprintf(os.Stderr, "no flag set\n")
+		if ch.Flag == "" {
+			fmt.Fprintf(os.Stderr, "no flag set for %s\n", ch.Path)
 		} else {
-			fmt.Fprintf(os.Stdout, "%s\n", challenge.Flag)
+			fmt.Println(ch.Flag)
 		}
 		return nil
 	}
 
 	flag := args.String("flag")
-	challenge, err := getCurrentChallenge()
-	if err != nil {
+	if flag == "" {
+		return errors.New("flag cannot be empty")
+	}
+	ch.SetFlag(flag)
+	if err := ch.Save(); err != nil {
 		return err
 	}
-	challenge.SetFlag(flag)
-	if err := challenge.Save(); err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stdout, "flag set to %s\n", flag)
+	fmt.Printf("flag set for %s: %s\n", ch.Path, flag)
 	return nil
-}
-
-func getCurrentChallenge() (*challenge.Challenge, error) {
-	ch, err := challenge.LoadCurrent()
-	if err != nil {
-		return nil, fmt.Errorf("load challenge: %w", err)
-	}
-	return ch, nil
 }

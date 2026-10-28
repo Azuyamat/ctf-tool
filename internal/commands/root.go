@@ -1,6 +1,11 @@
 package commands
 
-import "github.com/azuyamat/gear/command"
+import (
+	"github.com/azuyamat/ctf/internal/challenge"
+	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/state"
+	"github.com/azuyamat/gear/command"
+)
 
 func Root() *command.RootCommand {
 	return command.NewRootCommand("ctf", "Manage CTF challenges effortlessly").
@@ -11,4 +16,8 @@ func Root() *command.RootCommand {
 		AddChild(cmdFlag()).
 		AddChild(cmdLs()).
 		AddChild(cmdConfig())
+}
+
+func challengeRoot() string {
+	return challenge.Root(config.Current.BaseDir, state.Current.Event)
 }

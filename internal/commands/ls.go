@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/azuyamat/ctf/internal/challenge"
@@ -10,29 +9,26 @@ import (
 )
 
 func cmdLs() command.Command {
-	return command.NewExecutableCommand("ls", "List all challenges in the current directory").
+	return command.NewExecutableCommand("ls", "List challenges in the current event, or all if none is set").
 		Handler(runLs)
 }
 
 func runLs(ctx *command.Context, args command.ValidatedArgs) error {
-	root, err := challenge.Root()
-	if err != nil {
-		return err
-	}
-	challenges, err := challenge.ListChallenges()
+	root := challengeRoot()
+	challenges, err := challenge.ListChallenges(root)
 	if err != nil {
 		return err
 	}
 	for _, ch := range challenges {
-		var solved string
-		if !ch.Solved.IsZero() {
-			solved = "(solved)"
-		}
 		name, err := filepath.Rel(root, ch.Path)
 		if err != nil {
 			name = ch.Name
 		}
-		fmt.Fprintf(os.Stdout, "%s %s\n", name, solved)
+		if ch.Solved.IsZero() {
+			fmt.Println(name)
+		} else {
+			fmt.Printf("%s (solved)\n", name)
+		}
 	}
 	return nil
 }

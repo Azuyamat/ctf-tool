@@ -2,8 +2,13 @@ package state
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/azuyamat/ctf/internal/fsutil"
 )
 
 type State struct {
@@ -39,16 +44,16 @@ func Load() (*State, error) {
 	}
 
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return &State{}, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read state %s: %w", path, err)
 	}
 
 	var state State
 	if err := json.Unmarshal(data, &state); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse state %s: %w", path, err)
 	}
 	return &state, nil
 }
@@ -58,17 +63,8 @@ func (s *State) Save() error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
+	if err := fsutil.WriteJSON(path, s); err != nil {
+		return fmt.Errorf("write state %s: %w", path, err)
 	}
-	data, err := json.MarshalIndent(s, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return nil
 }
