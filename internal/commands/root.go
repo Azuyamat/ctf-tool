@@ -7,5 +7,7 @@ func Root() *command.RootCommand {
 		AddChild(cmdNew()).
 		AddChild(cmdEvent()).
 		AddChild(cmdLast()).
-		AddChild(cmdTemplates())
+		AddChild(cmdTemplates()).
+		AddChild(cmdFlag()).
+		AddChild(cmdLs())
 }

@@ -14,11 +14,11 @@ type Config struct {
 var Current *Config
 
 func ConfigFolderPath() (string, error) {
-	home, err := os.UserHomeDir()
+	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, "ctf"), nil
+	return filepath.Join(dir, "ctf"), nil
 }
 
 func LoadOrCreateConfig() (*Config, error) {
