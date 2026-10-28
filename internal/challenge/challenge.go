@@ -48,7 +48,7 @@ func New(root, name string) (*Challenge, error) {
 }
 
 // Create makes the challenge folder, copying tmpl into it when non-nil.
-func (c *Challenge) Create(tmpl *template.Template) error {
+func (c *Challenge) Create(tmpl *template.Template, data template.Data) error {
 	if err := os.MkdirAll(filepath.Dir(c.Path), 0755); err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (c *Challenge) Create(tmpl *template.Template) error {
 	}
 
 	if tmpl != nil {
-		if err := tmpl.CopyTo(c.Path); err != nil {
+		if err := tmpl.CopyTo(c.Path, data); err != nil {
 			os.RemoveAll(c.Path)
 			return fmt.Errorf("copy template %s: %w", tmpl.Name, err)
 		}

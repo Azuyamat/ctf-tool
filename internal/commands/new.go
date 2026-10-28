@@ -36,7 +36,8 @@ func runNew(ctx *command.Context, args command.ValidatedArgs) error {
 		return err
 	}
 
-	if err := ch.Create(tmpl); err != nil {
+	data := template.Data{Name: ch.Name, Event: state.Current.Event}
+	if err := ch.Create(tmpl, data); err != nil {
 		return err
 	}
 

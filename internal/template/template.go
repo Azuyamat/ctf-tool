@@ -3,9 +3,12 @@ package template
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	texttemplate "text/template"
 
 	"github.com/azuyamat/ctf/internal/fsutil"
 )
@@ -13,6 +16,7 @@ import (
 const (
 	DirName = "templates"
 	Default = "default"
+	Ext     = ".tmpl"
 )
 
 var ErrNotFound = errors.New("template not found")
@@ -85,6 +89,49 @@ func List(base, event string) ([]Template, error) {
 	return templates, nil
 }
 
-func (t *Template) CopyTo(dst string) error {
-	return os.CopyFS(dst, os.DirFS(t.Path))
+type Data struct {
+	Name  string
+	Event string
+}
+
+func (t *Template) CopyTo(dst string, data Data) error {
+	src := os.DirFS(t.Path)
+	return fs.WalkDir(src, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, filepath.FromSlash(path))
+		if d.IsDir() {
+			return os.MkdirAll(target, 0755)
+		}
+
+		content, err := fs.ReadFile(src, path)
+		if err != nil {
+			return err
+		}
+		info, err := fs.Stat(src, path)
+		if err != nil {
+			return err
+		}
+
+		target, render := strings.CutSuffix(target, Ext)
+		f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
+		if err != nil {
+			return err
+		}
+		if render {
+			err = execute(f, path, content, data)
+		} else {
+			_, err = f.Write(content)
+		}
+		return errors.Join(err, f.Close())
+	})
+}
+
+func execute(w io.Writer, name string, content []byte, data Data) error {
+	tmpl, err := texttemplate.New(name).Parse(string(content))
+	if err != nil {
+		return err
+	}
+	return tmpl.Execute(w, data)
 }
