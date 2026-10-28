@@ -11,7 +11,7 @@ import (
 	"github.com/azuyamat/gear/command"
 )
 
-func Root() *command.RootCommand {
+func Root(version string) *command.RootCommand {
 	return command.NewRootCommand("ctf", "Manage CTF challenges effortlessly").
 		AddChild(cmdNew()).
 		AddChild(cmdEvent()).
@@ -21,7 +21,8 @@ func Root() *command.RootCommand {
 		AddChild(cmdLs()).
 		AddChild(cmdConfig()).
 		AddChild(cmdGrab()).
-		AddChild(cmdOpen())
+		AddChild(cmdOpen()).
+		AddChild(cmdVersion(version))
 }
 
 func challengeRoot() string {
