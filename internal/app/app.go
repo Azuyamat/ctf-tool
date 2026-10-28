@@ -24,6 +24,7 @@ type App struct {
 	Config  *config.Config
 	State   *state.State
 	Version string
+	loaded  state.State
 }
 
 func Load(version string) (*App, error) {
@@ -35,11 +36,18 @@ func Load(version string) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{Config: cfg, State: st, Version: version}, nil
+	return &App{Config: cfg, State: st, Version: version, loaded: *st}, nil
 }
 
 func (a *App) Save() error {
-	return a.State.Save()
+	if *a.State == a.loaded {
+		return nil
+	}
+	if err := a.State.Save(); err != nil {
+		return err
+	}
+	a.loaded = *a.State
+	return nil
 }
 
 func (a *App) Layout() layout.Layout {
