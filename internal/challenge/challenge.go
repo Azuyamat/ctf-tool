@@ -128,15 +128,19 @@ func LoadFromPath(base, path string) (*Challenge, error) {
 	return nil, fmt.Errorf("%w: %s", ErrNotFound, path)
 }
 
-// LoadCurrent loads the challenge containing the working directory, falling
-// back to the last created challenge.
-func LoadCurrent(base, last string) (*Challenge, error) {
+// LoadFromCwd loads the challenge containing the working directory.
+func LoadFromCwd(base string) (*Challenge, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("get current dir: %w", err)
 	}
+	return LoadFromPath(base, cwd)
+}
 
-	ch, err := LoadFromPath(base, cwd)
+// LoadCurrent loads the challenge containing the working directory, falling
+// back to the last created challenge.
+func LoadCurrent(base, last string) (*Challenge, error) {
+	ch, err := LoadFromCwd(base)
 	if !errors.Is(err, ErrNotFound) || last == "" {
 		return ch, err
 	}

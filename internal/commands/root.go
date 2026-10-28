@@ -15,7 +15,9 @@ func Root() *command.RootCommand {
 		AddChild(cmdTemplates()).
 		AddChild(cmdFlag()).
 		AddChild(cmdLs()).
-		AddChild(cmdConfig())
+		AddChild(cmdConfig()).
+		AddChild(cmdGrab()).
+		AddChild(cmdOpen())
 }
 
 func challengeRoot() string {
