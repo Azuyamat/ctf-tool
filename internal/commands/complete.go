@@ -26,6 +26,23 @@ func (c *cli) completeCategories(*command.Context, command.ValidatedArgs, string
 	return categories
 }
 
+func (c *cli) completeChallenges(*command.Context, command.ValidatedArgs, string) []string {
+	root := c.ChallengeRoot()
+	challenges, err := challenge.ListChallenges(root)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, e := range listEntries(root, challenges) {
+		desc := "unsolved"
+		if e.ch.IsSolved() {
+			desc = "solved"
+		}
+		names = append(names, entryPath(e)+"\t"+desc)
+	}
+	return names
+}
+
 func (c *cli) completeTemplates(*command.Context, command.ValidatedArgs, string) []string {
 	templates, err := template.List(c.Layout(), c.State.Event)
 	if err != nil {

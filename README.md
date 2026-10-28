@@ -10,6 +10,13 @@ curl -fsSL https://raw.githubusercontent.com/Azuyamat/ctf-tool/main/install.sh |
 
 Installs to `~/.local/bin`. Linux and macOS, amd64 and arm64.
 
+Then add shell setup, which gives you `ctf cd` and tab completion:
+
+```sh
+eval "$(ctf init zsh)"         # in ~/.zshrc, or `ctf init bash` in ~/.bashrc
+ctf init fish | source         # in ~/.config/fish/config.fish
+```
+
 | Variable | Default | |
 |---|---|---|
 | `CTF_VERSION` | `latest` | Release to install, e.g. `v0.1.0` |
@@ -76,6 +83,8 @@ The token is made in CTFd under **Settings → Access Tokens**. If an instance d
 | `ctf hint <n>` | Show hint `n`, unlocking it first. Paid hints ask before spending points; `-y` skips the prompt. |
 | `ctf ls [category]` | List challenges by category with points, solve status, time and flag. |
 | `ctf ls -u` | List only unsolved challenges. |
+| `ctf cd <name>` | Go to a challenge. Takes `category/name`, the folder name, the name on CTFd or part of the path. Needs `ctf init`. |
+| `ctf cd` | Go to the current event's folder. |
 | `ctf info` | Show the current challenge's points, tags, connection, attempts, link and description. |
 | `ctf flag` | Print the current challenge's flag. |
 | `ctf flag <flag>` | Set the flag and mark the challenge solved. |
@@ -88,6 +97,8 @@ The token is made in CTFd under **Settings → Access Tokens**. If an instance d
 | `ctf config list` | Show all settings. |
 | `ctf config get <key>` | Print a setting. |
 | `ctf config set <key> <value>` | Change a setting. |
+| `ctf init <shell>` | Print shell setup for `ctf cd` and completion: `bash`, `zsh` or `fish`. |
+| `ctf completion <shell>` | Print only the completion script. |
 | `ctf version` | Print the version. |
 | `ctf completion <shell>` | Print a completion script for `bash`, `zsh` or `fish`. |
 
@@ -105,6 +116,8 @@ ctf completion fish | source    # add to ~/.config/fish/config.fish
 **Current challenge** is the one containing your working directory. `flag`, `info`, `submit` and `hint` also fall back to the last created challenge; `grab` and `open` don't.
 
 `cd "$(ctf last)"` jumps to the challenge you just made.
+
+`ctf cd` looks in the current event. An exact match on the path, folder name or CTFd name wins; otherwise any challenge whose path contains the text does, as long as only one does. Without `ctf init` it can't change your shell's directory, so it prints the path instead.
 
 ## Grab
 

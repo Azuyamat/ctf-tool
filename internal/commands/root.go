@@ -25,6 +25,7 @@ func Root(a *app.App) *command.RootCommand {
 		AddChild(c.cmdLogout()).
 		AddChild(c.cmdNew()).
 		AddChild(c.cmdLs()).
+		AddChild(c.cmdCd()).
 		AddChild(c.cmdInfo()).
 		AddChild(c.cmdOpen()).
 		AddChild(c.cmdGrab()).
@@ -35,7 +36,9 @@ func Root(a *app.App) *command.RootCommand {
 		AddChild(c.cmdTemplates()).
 		AddChild(c.cmdConfig()).
 		AddChild(cmdVersion(a.Version))
-	return root.AddChild(root.CompletionCommand().Group("Setup"))
+	return root.
+		AddChild(cmdInit(root)).
+		AddChild(root.CompletionCommand().Group("Setup"))
 }
 
 func (c *cli) shortPath(path string) string {
