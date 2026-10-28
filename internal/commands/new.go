@@ -8,6 +8,7 @@ import (
 	"github.com/azuyamat/ctf/internal/config"
 	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/ctf/internal/template"
+	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
@@ -43,12 +44,11 @@ func runNew(ctx *command.Context, args command.ValidatedArgs) error {
 
 	state.Current.LastChallenge = ch.Path
 
+	detail := ""
 	if tmpl != nil {
-		fmt.Printf("challenge created %s (template %s, %s)\n", ch.Path, tmpl.Name, tmpl.Scope)
-	} else {
-		fmt.Printf("challenge created %s\n", ch.Path)
+		detail = "  " + ui.Dim(fmt.Sprintf("template %s · %s", tmpl.Name, tmpl.Scope))
 	}
-
+	ui.Successf("created %s%s", ui.Bold(shortPath(ch.Path)), detail)
 	return nil
 }
 

@@ -55,7 +55,7 @@ func (c *Challenge) Create(tmpl *template.Template, data template.Data) error {
 
 	if err := os.Mkdir(c.Path, 0755); err != nil {
 		if errors.Is(err, fs.ErrExist) {
-			return fmt.Errorf("challenge already exists: %s", c.Path)
+			return fmt.Errorf("challenge already exists: %s", c.Name)
 		}
 		return err
 	}
@@ -81,6 +81,10 @@ func (c *Challenge) SetFlag(flag string) {
 	if c.Solved.IsZero() {
 		c.Solved = time.Now()
 	}
+}
+
+func (c *Challenge) IsSolved() bool {
+	return !c.Solved.IsZero()
 }
 
 func (c *Challenge) configFilePath() string {

@@ -17,14 +17,18 @@ const (
 	DirName = "templates"
 	Default = "default"
 	Ext     = ".tmpl"
+
+	ScopeEvent  = "event"
+	ScopeGlobal = "global"
 )
 
 var ErrNotFound = errors.New("template not found")
 
 type Template struct {
-	Name  string
-	Path  string
-	Scope string
+	Name     string
+	Path     string
+	Scope    string
+	Shadowed bool
 }
 
 type source struct {
@@ -32,13 +36,21 @@ type source struct {
 	dir   string
 }
 
+func GlobalDir(base string) string {
+	return filepath.Join(base, DirName)
+}
+
+func EventDir(base, event string) string {
+	return filepath.Join(base, event, DirName)
+}
+
 // sources returns template directories in lookup order, event first.
 func sources(base, event string) []source {
 	var srcs []source
 	if event != "" {
-		srcs = append(srcs, source{scope: "event", dir: filepath.Join(base, event, DirName)})
+		srcs = append(srcs, source{scope: ScopeEvent, dir: EventDir(base, event)})
 	}
-	return append(srcs, source{scope: "global", dir: filepath.Join(base, DirName)})
+	return append(srcs, source{scope: ScopeGlobal, dir: GlobalDir(base)})
 }
 
 func Find(base, event, name string) (*Template, error) {
@@ -62,7 +74,7 @@ func Find(base, event, name string) (*Template, error) {
 	return nil, fmt.Errorf("%w: %s", ErrNotFound, name)
 }
 
-// List returns all available templates, with event templates shadowing global ones.
+// List returns all templates in lookup order, marking those shadowed by an earlier source.
 func List(base, event string) ([]Template, error) {
 	seen := make(map[string]bool)
 	var templates []Template
@@ -75,15 +87,16 @@ func List(base, event string) ([]Template, error) {
 			return nil, err
 		}
 		for _, entry := range entries {
-			if !entry.IsDir() || seen[entry.Name()] {
+			if !entry.IsDir() {
 				continue
 			}
-			seen[entry.Name()] = true
 			templates = append(templates, Template{
-				Name:  entry.Name(),
-				Path:  filepath.Join(src.dir, entry.Name()),
-				Scope: src.scope,
+				Name:     entry.Name(),
+				Path:     filepath.Join(src.dir, entry.Name()),
+				Scope:    src.scope,
+				Shadowed: seen[entry.Name()],
 			})
+			seen[entry.Name()] = true
 		}
 	}
 	return templates, nil

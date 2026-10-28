@@ -46,7 +46,8 @@ func runGrab(ctx *command.Context, args command.ValidatedArgs) error {
 		return errors.New("recent count cannot be negative")
 	}
 
-	p := tea.NewProgram(ui.NewSelect(downloads).SelectFirst(n))
+	dst := grabDir(ch)
+	p := tea.NewProgram(ui.NewSelect("Grab into "+shortPath(dst), downloads).SelectFirst(n))
 	model, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("run select UI: %w", err)
@@ -56,13 +57,12 @@ func runGrab(ctx *command.Context, args command.ValidatedArgs) error {
 		return errors.New("no files selected")
 	}
 
-	dst := grabDir(ch)
 	for _, choice := range selected {
 		d := choice.(downloadChoice)
 		if err := move(d.path, filepath.Join(dst, d.name)); err != nil {
 			return fmt.Errorf("grab %s: %w", d.name, err)
 		}
-		fmt.Printf("grabbed %s into %s\n", d.name, dst)
+		ui.Successf("grabbed %s → %s", ui.Bold(d.name), shortPath(dst))
 	}
 	return nil
 }
@@ -123,11 +123,21 @@ func copyPath(src, dst string) error {
 type downloadChoice struct {
 	name    string
 	path    string
+	size    int64
+	isDir   bool
 	modTime time.Time
 }
 
-func (d downloadChoice) String() string {
+func (d downloadChoice) Label() string {
 	return d.name
+}
+
+func (d downloadChoice) Detail() string {
+	size := ui.Size(d.size)
+	if d.isDir {
+		size = "folder"
+	}
+	return fmt.Sprintf("%9s  %s", size, ui.Ago(d.modTime))
 }
 
 var partialDownloadExts = []string{".part", ".crdownload", ".download"}
@@ -152,6 +162,8 @@ func listDownloads() ([]ui.Choice, error) {
 		downloads = append(downloads, downloadChoice{
 			name:    name,
 			path:    filepath.Join(dir, name),
+			size:    info.Size(),
+			isDir:   info.IsDir(),
 			modTime: info.ModTime(),
 		})
 	}

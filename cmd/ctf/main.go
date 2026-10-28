@@ -1,17 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/azuyamat/ctf/internal/commands"
 	"github.com/azuyamat/ctf/internal/config"
 	"github.com/azuyamat/ctf/internal/state"
+	"github.com/azuyamat/ctf/internal/ui"
 )
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		ui.Error(err)
 		os.Exit(1)
 	}
 }

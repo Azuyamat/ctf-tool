@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/azuyamat/ctf/internal/challenge"
 	"github.com/azuyamat/ctf/internal/config"
 	"github.com/azuyamat/ctf/internal/fsutil"
 	"github.com/azuyamat/ctf/internal/state"
 	"github.com/azuyamat/ctf/internal/template"
+	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
@@ -29,17 +32,12 @@ func cmdEvent() command.Command {
 func runEvent(ctx *command.Context, args command.ValidatedArgs) error {
 	if args.FlagBool("clear") {
 		state.Current.Event = ""
-		fmt.Println("event cleared")
+		ui.Successf("event cleared")
 		return nil
 	}
 
 	if !args.Has("name") {
-		if state.Current.Event == "" {
-			fmt.Println("no event set")
-		} else {
-			fmt.Println(state.Current.Event)
-		}
-		return nil
+		return printEventSummary()
 	}
 
 	name := args.String("name")
@@ -52,8 +50,30 @@ func runEvent(ctx *command.Context, args command.ValidatedArgs) error {
 	}
 
 	state.Current.Event = name
-	fmt.Printf("event set to %s\n", name)
+	ui.Successf("event set to %s", ui.Bold(name))
+	return nil
+}
 
+func printEventSummary() error {
+	if state.Current.Event == "" {
+		ui.Notef("no event set")
+		return nil
+	}
+
+	root := challengeRoot()
+	challenges, err := challenge.ListChallenges(root)
+	if err != nil {
+		return err
+	}
+
+	parts := []string{
+		ui.Bold(state.Current.Event),
+		fmt.Sprintf("%d/%d solved", countSolved(challenges), len(challenges)),
+	}
+	if last, ok := fsutil.Within(root, state.Current.LastChallenge); ok {
+		parts = append(parts, "last: "+last)
+	}
+	ui.Println(strings.Join(parts, ui.Dim(" · ")))
 	return nil
 }
 

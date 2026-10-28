@@ -2,10 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"os"
-	"text/tabwriter"
 
 	"github.com/azuyamat/ctf/internal/config"
+	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
@@ -59,7 +58,7 @@ func runConfigSet(ctx *command.Context, args command.ValidatedArgs) error {
 		return err
 	}
 
-	fmt.Printf("configuration key '%s' set to '%s'\n", key.Name, key.Get(config.Current))
+	ui.Successf("%s set to %s", ui.Bold(key.Name), key.Get(config.Current))
 	return nil
 }
 
@@ -74,9 +73,10 @@ func runConfigGet(ctx *command.Context, args command.ValidatedArgs) error {
 }
 
 func runConfigList(ctx *command.Context, args command.ValidatedArgs) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for _, key := range config.Keys {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", key.Name, key.Get(config.Current), key.Description)
+	rows := make([][]string, len(config.Keys))
+	for i, key := range config.Keys {
+		rows[i] = []string{ui.Bold(key.Name), key.Get(config.Current), ui.Dim(key.Description)}
 	}
-	return w.Flush()
+	ui.Println(ui.Table(rows))
+	return nil
 }

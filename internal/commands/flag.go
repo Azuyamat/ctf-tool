@@ -3,11 +3,11 @@ package commands
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/azuyamat/ctf/internal/challenge"
 	"github.com/azuyamat/ctf/internal/config"
 	"github.com/azuyamat/ctf/internal/state"
+	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
 
@@ -30,9 +30,9 @@ func runFlag(ctx *command.Context, args command.ValidatedArgs) error {
 
 	if !args.Has("flag") {
 		if ch.Flag == "" {
-			fmt.Fprintf(os.Stderr, "no flag set for %s\n", ch.Path)
+			ui.Notef("no flag set for %s", shortPath(ch.Path))
 		} else {
-			fmt.Println(ch.Flag)
+			ui.Println(ui.Accent(ch.Flag))
 		}
 		return nil
 	}
@@ -45,6 +45,6 @@ func runFlag(ctx *command.Context, args command.ValidatedArgs) error {
 	if err := ch.Save(); err != nil {
 		return err
 	}
-	fmt.Printf("flag set for %s: %s\n", ch.Path, flag)
+	ui.Successf("flag set for %s  %s", ui.Bold(shortPath(ch.Path)), ui.Accent(flag))
 	return nil
 }

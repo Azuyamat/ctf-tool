@@ -2,13 +2,16 @@ module github.com/azuyamat/ctf
 
 go 1.27.1
 
-require github.com/azuyamat/gear v0.0.0-20260402023528-8d58d6db8028
+require (
+	charm.land/bubbletea/v2 v2.1.0
+	charm.land/lipgloss/v2 v2.0.6
+	github.com/azuyamat/gear v0.0.0-20260402023528-8d58d6db8028
+	github.com/charmbracelet/colorprofile v0.4.3
+	github.com/charmbracelet/x/ansi v0.11.9
+)
 
 require (
-	charm.land/bubbletea/v2 v2.1.0 // indirect
-	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4 // indirect
-	github.com/charmbracelet/x/ansi v0.11.9 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
