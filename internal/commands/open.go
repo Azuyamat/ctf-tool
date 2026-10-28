@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -12,7 +13,7 @@ import (
 )
 
 func (c *cli) cmdOpen() command.Command {
-	return command.NewExecutableCommand("open", "Open the current challenge in $EDITOR").
+	return command.NewExecutableCommand("open", "Open the current challenge in your editor").
 		Group("Challenges").
 		Flags(
 			command.NewBoolFlag("web", "w", "Open the challenge's page on the CTF site instead", false),
@@ -32,9 +33,9 @@ func (c *cli) runOpen(ctx *command.Context, args command.ValidatedArgs) error {
 		return openURL(ch.Remote.URL)
 	}
 
-	editor := strings.Fields(os.Getenv("EDITOR"))
+	editor := strings.Fields(cmp.Or(c.Config.Editor, os.Getenv("EDITOR")))
 	if len(editor) == 0 {
-		return errors.New("EDITOR is not set")
+		return errors.New("no editor set, run ctf config set editor <command> or set EDITOR")
 	}
 
 	cmd := exec.Command(editor[0], append(editor[1:], ch.Path)...)

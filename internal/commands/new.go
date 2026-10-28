@@ -25,7 +25,7 @@ func (c *cli) cmdNew() command.Command {
 			),
 		).
 		Flags(
-			command.NewStringFlag("template", "t", "Template to copy into the challenge (default: \"default\" if it exists)", "").Complete(c.completeTemplates),
+			command.NewStringFlag("template", "t", "Template to copy into the challenge (default: the defaultTemplate setting)", "").Complete(c.completeTemplates),
 			command.NewStringFlag("remote", "r", "Where the challenge runs: host:port, \"nc host port\" or a URL", ""),
 		).
 		Handler(c.runNew)
@@ -64,15 +64,17 @@ func (c *cli) runNew(ctx *command.Context, args command.ValidatedArgs) error {
 }
 
 // resolveTemplate finds the named template. With no name it falls back to the
-// default template, returning nil without error if there is none.
+// defaultTemplate setting, returning nil without error if that is the built-in
+// default and it doesn't exist.
 func (c *cli) resolveTemplate(name string) (*template.Template, error) {
 	l, event := c.Layout(), c.State.Event
 	if name != "" {
 		return template.Find(l, event, name)
 	}
 
-	tmpl, err := template.Find(l, event, template.Default)
-	if errors.Is(err, template.ErrNotFound) {
+	name = c.Config.DefaultTemplate
+	tmpl, err := template.Find(l, event, name)
+	if errors.Is(err, template.ErrNotFound) && name == template.Default {
 		return nil, nil
 	}
 	return tmpl, err

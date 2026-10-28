@@ -36,6 +36,8 @@ func Load(version string) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	challenge.ReadmeName = cfg.ReadmeName
+	challenge.FilesDirName = cfg.FilesDir
 	return &App{Config: cfg, State: st, Version: version, loaded: *st}, nil
 }
 

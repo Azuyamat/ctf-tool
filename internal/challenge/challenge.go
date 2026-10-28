@@ -70,10 +70,12 @@ func (c *Challenge) SolvedOnServer() bool {
 	return c.SolvedBy == SolvedByMe || c.SolvedBy == SolvedByTeam
 }
 
-const DistDir = "dist"
+const DefaultFilesDir = "dist"
+
+var FilesDirName = DefaultFilesDir
 
 func (c *Challenge) FilesDir() string {
-	dist := filepath.Join(c.Path, DistDir)
+	dist := filepath.Join(c.Path, FilesDirName)
 	if info, err := os.Stat(dist); err == nil && info.IsDir() {
 		return dist
 	}

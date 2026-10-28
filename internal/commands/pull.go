@@ -26,7 +26,7 @@ func (c *cli) cmdPull() command.Command {
 			command.NewBoolFlag("status", "s", "Only refresh which challenges are solved", false),
 			command.NewBoolFlag("free-hints", "", "Unlock hints that cost 0 points", false),
 			command.NewBoolFlag("no-files", "", "Don't download challenge files", false),
-			command.NewStringFlag("template", "t", "Template for new challenges (default: \"default\" if it exists)", "").Complete(c.completeTemplates),
+			command.NewStringFlag("template", "t", "Template for new challenges (default: the defaultTemplate setting)", "").Complete(c.completeTemplates),
 		).
 		MutuallyExclusive("status", "free-hints").
 		MutuallyExclusive("status", "no-files").

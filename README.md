@@ -36,7 +36,7 @@ ctf event picoctf              # challenges now go under ~/ctf/picoctf
 ctf new web/cookies            # create ~/ctf/picoctf/web/cookies
 cd ~/ctf/picoctf/web/cookies
 ctf grab                       # move the newest download in here
-ctf open                       # open the folder in $EDITOR
+ctf open                       # open the folder in your editor
 ctf flag 'picoCTF{...}'        # mark it solved
 ctf ls                         # see progress
 ```
@@ -90,7 +90,7 @@ The token is made in CTFd under **Settings → Access Tokens**. If an instance d
 | `ctf flag <flag>` | Set the flag and mark the challenge solved. |
 | `ctf grab` | Pick downloads to move into the current challenge. |
 | `ctf grab -n <count>` | Preselect the `<count>` newest downloads (default 1). |
-| `ctf open` | Open the current challenge in `$EDITOR`. |
+| `ctf open` | Open the current challenge in the `editor` setting, or `$EDITOR`. |
 | `ctf open -w` | Open the challenge's page on the CTFd site in the browser. |
 | `ctf last` | Print the path of the last created challenge. |
 | `ctf templates` | List templates and which ones override others. |
@@ -121,7 +121,7 @@ ctf completion fish | source    # add to ~/.config/fish/config.fish
 
 ## Grab
 
-Downloads are listed newest first; hidden files and unfinished downloads (`.part`, `.crdownload`) are skipped. Files go into the challenge's `dist/` folder if it has one, otherwise the challenge folder.
+Downloads are listed newest first; hidden files and unfinished downloads (`.part`, `.crdownload`) are skipped. Files go into the challenge's `dist/` folder (the `filesDir` setting) if it has one, otherwise the challenge folder.
 
 | Key | Action |
 |---|---|
@@ -146,7 +146,7 @@ Each run reports what happened:
 
 Points, solve counts, tags and attempts update without being reported, so dynamic scoring doesn't flag every challenge. Locked challenges are counted and created once they unlock.
 
-Challenge files are downloaded into the challenge's `dist/` folder, or the challenge folder if it has none. A file is only downloaded again when the server's copy changes. If you already have a different version, the new one is saved as `<name>.new` and yours is kept. An interrupted download leaves a `.part` file that the next pull replaces.
+Challenge files are downloaded into the challenge's `dist/` folder (the `filesDir` setting), or the challenge folder if it has none. A file is only downloaded again when the server's copy changes. If you already have a different version, the new one is saved as `<name>.new` and yours is kept. An interrupted download leaves a `.part` file that the next pull replaces.
 
 ### Solves
 
@@ -156,7 +156,7 @@ A local solve is never undone. If you recorded a flag with `ctf flag` and the se
 
 ### What pull writes
 
-Apart from downloaded files, pull only writes `.ctf.json` and `README.md`. `README.md` is regenerated from the server, so keep notes in another file. Everything else, like `solve.py`, is never touched after the folder is created.
+Apart from downloaded files, pull only writes `.ctf.json` and `README.md`. `README.md` is regenerated from the server, so keep notes in another file, or set `readmeName` to have pull write somewhere else, like `CHALLENGE.md`. Everything else, like `solve.py`, is never touched after the folder is created.
 
 `README.md` links to the challenge on the CTFd site; `ctf open -w` opens that link.
 
@@ -189,7 +189,7 @@ A template is a folder copied into every new challenge.
 ```
 ~/ctf/
 ├── templates/          global templates
-│   └── default/        used when no -t is given
+│   └── default/        used when no -t is given (the defaultTemplate setting)
 │       ├── dist/
 │       └── solve.py.tmpl
 └── picoctf/
@@ -223,6 +223,12 @@ from pwn import *
 |---|---|---|
 | `baseDir` | `~/ctf` | Where events and challenges live |
 | `downloadDir` | `~/Downloads` | Where `grab` looks for files |
+| `editor` | empty | Command `ctf open` runs, e.g. `code` or `nvim`. Empty uses `$EDITOR` |
+| `defaultTemplate` | `default` | Template for `new` and `pull` when no `-t` is given. Only `default` may be missing |
+| `readmeName` | `README.md` | File `pull` writes the challenge description to |
+| `filesDir` | `dist` | Folder in a challenge that `grab` and `pull` put files into |
+
+Changing `readmeName` leaves old READMEs in place; the next pull writes the new file next to them. Changing `filesDir` doesn't move files: ones already pulled are tracked by where they were saved and aren't downloaded again.
 
 | File | Location |
 |---|---|

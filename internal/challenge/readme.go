@@ -12,7 +12,9 @@ import (
 	"github.com/azuyamat/ctf/internal/fsutil"
 )
 
-const ReadmeName = "README.md"
+const DefaultReadmeName = "README.md"
+
+var ReadmeName = DefaultReadmeName
 
 func (h Hint) Label(n int) string {
 	if h.Title != "" {

@@ -69,7 +69,7 @@ func (pl *puller) downloadOne(ctx context.Context, ch *challenge.Challenge, f pl
 
 	dir := pl.filesDir(ch)
 	if dir == ch.Path && ownedByPull(f.Name) {
-		dir = filepath.Join(ch.Path, challenge.DistDir)
+		dir = filepath.Join(ch.Path, challenge.FilesDirName)
 	}
 	target := filepath.Join(dir, f.Name)
 	if pl.opts.DryRun {
@@ -112,8 +112,8 @@ func (pl *puller) filesDir(ch *challenge.Challenge) string {
 	if exists(ch.Path) || pl.opts.Template == nil {
 		return ch.FilesDir()
 	}
-	if info, err := os.Stat(filepath.Join(pl.opts.Template.Path, challenge.DistDir)); err == nil && info.IsDir() {
-		return filepath.Join(ch.Path, challenge.DistDir)
+	if info, err := os.Stat(filepath.Join(pl.opts.Template.Path, challenge.FilesDirName)); err == nil && info.IsDir() {
+		return filepath.Join(ch.Path, challenge.FilesDirName)
 	}
 	return ch.Path
 }

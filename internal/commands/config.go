@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"cmp"
 	"fmt"
 
 	"github.com/azuyamat/ctf/internal/config"
@@ -63,11 +64,14 @@ func (c *cli) runConfigSet(ctx *command.Context, args command.ValidatedArgs) err
 	if err := key.Set(c.Config, command.ArgValue[string](args, "value")); err != nil {
 		return err
 	}
+	if err := c.Config.Validate(); err != nil {
+		return err
+	}
 	if err := c.Config.Save(); err != nil {
 		return err
 	}
 
-	ui.Successf("%s set to %s", ui.Bold(key.Name), key.Get(c.Config))
+	ui.Successf("%s set to %s", ui.Bold(key.Name), cmp.Or(key.Get(c.Config), ui.Dim("(empty)")))
 	return nil
 }
 
