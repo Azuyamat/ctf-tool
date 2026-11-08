@@ -29,6 +29,15 @@ git clone https://github.com/Azuyamat/ctf-tool && cd ctf-tool
 go build -o ~/.local/bin/ctf ./cmd/ctf
 ```
 
+On Nix (flakes):
+
+```sh
+nix run github:Azuyamat/ctf-tool                # run without installing
+nix profile install github:Azuyamat/ctf-tool    # install into your profile
+```
+
+A `nix develop` shell is also provided for working on `ctf` itself.
+
 ## Quick start
 
 ```sh
@@ -264,6 +273,8 @@ Changing `readmeName` leaves old READMEs in place; the next pull writes the new 
 Output colors turn off when piped or when `NO_COLOR` is set.
 
 ## Development
+
+With [Nix](https://nixos.org) and [direnv](https://direnv.net) (plus [nix-direnv](https://github.com/nix-community/nix-direnv) for caching), `direnv allow` once in the repo puts `go`, `gopls` and `golangci-lint` on `PATH` whenever you `cd` in, using your normal shell instead of the `nix develop` subshell. Without direnv, `nix develop` still works.
 
 `testdata/ctfd` runs a seeded CTFd 3.8 instance in Docker for trying CTFd features locally.
 
