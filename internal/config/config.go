@@ -16,12 +16,13 @@ import (
 )
 
 type Config struct {
-	BaseDir         string `json:"baseDir"`
-	DownloadDir     string `json:"downloadDir"`
-	Editor          string `json:"editor"`
-	DefaultTemplate string `json:"defaultTemplate"`
-	ReadmeName      string `json:"readmeName"`
-	FilesDir        string `json:"filesDir"`
+	BaseDir              string `json:"baseDir"`
+	DownloadDir          string `json:"downloadDir"`
+	Editor               string `json:"editor"`
+	DefaultTemplate      string `json:"defaultTemplate"`
+	DefaultEventTemplate string `json:"defaultEventTemplate"`
+	ReadmeName           string `json:"readmeName"`
+	FilesDir             string `json:"filesDir"`
 }
 
 var Keys = []Key{
@@ -29,6 +30,7 @@ var Keys = []Key{
 	stringKey("downloadDir", "Your default downloads directory", func(c *Config) *string { return &c.DownloadDir }, NormalizePath),
 	stringKey("editor", "Command ctf open runs, empty to use $EDITOR", func(c *Config) *string { return &c.Editor }, normalizeEditor),
 	stringKey("defaultTemplate", "Template used when no -t is given", func(c *Config) *string { return &c.DefaultTemplate }, normalizeTemplate),
+	stringKey("defaultEventTemplate", "Event template applied when an event is created", func(c *Config) *string { return &c.DefaultEventTemplate }, normalizeTemplate),
 	eventKey("readmeName", "File pull writes the challenge description to", func(c *Config) *string { return &c.ReadmeName }, func(e *event.Event) *string { return &e.ReadmeName }, normalizeFileName),
 	eventKey("filesDir", "Folder in a challenge that downloads go into", func(c *Config) *string { return &c.FilesDir }, func(e *event.Event) *string { return &e.FilesDir }, normalizeFileName),
 }
@@ -130,11 +132,12 @@ func Defaults() (*Config, error) {
 		return nil, err
 	}
 	return &Config{
-		BaseDir:         filepath.Join(home, "ctf"),
-		DownloadDir:     filepath.Join(home, "Downloads"),
-		DefaultTemplate: template.Default,
-		ReadmeName:      challenge.DefaultReadmeName,
-		FilesDir:        challenge.DefaultFilesDir,
+		BaseDir:              filepath.Join(home, "ctf"),
+		DownloadDir:          filepath.Join(home, "Downloads"),
+		DefaultTemplate:      template.Default,
+		DefaultEventTemplate: template.Default,
+		ReadmeName:           challenge.DefaultReadmeName,
+		FilesDir:             challenge.DefaultFilesDir,
 	}, nil
 }
 

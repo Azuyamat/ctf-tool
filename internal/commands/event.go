@@ -2,11 +2,13 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/azuyamat/ctf/internal/challenge"
 	"github.com/azuyamat/ctf/internal/event"
 	"github.com/azuyamat/ctf/internal/fsutil"
+	"github.com/azuyamat/ctf/internal/template"
 	"github.com/azuyamat/ctf/internal/ui"
 	"github.com/azuyamat/gear/command"
 )
@@ -19,6 +21,7 @@ func (c *cli) cmdEvent() command.Command {
 			"ctf event picoctf-2026",
 			"# link the current event to its CTFd instance\nctf event --ctfd https://play.picoctf.org",
 			"ctf event --flag-format 'picoCTF\\{.+\\}'",
+			"# scaffold a new event from an event template\nctf event nightfall -t pwn",
 		).
 		Args(
 			command.NewStringArg(
@@ -33,6 +36,7 @@ func (c *cli) cmdEvent() command.Command {
 			command.NewBoolFlag("unlink", "", "Remove the event's platform link", false),
 			command.NewStringFlag("flag-format", "", "Regular expression flags must match, e.g. 'picoCTF\\{.+\\}'", ""),
 			command.NewBoolFlag("no-flag-format", "", "Remove the event's flag format", false),
+			command.NewStringFlag("template", "t", "Event template to scaffold a new event with (default: the defaultEventTemplate setting)", "").Complete(c.completeEventTemplates),
 		).
 		MutuallyExclusive("ctfd", "unlink").
 		MutuallyExclusive("flag-format", "no-flag-format").
@@ -64,6 +68,23 @@ func (c *cli) runEvent(ctx *command.Context, args command.ValidatedArgs) error {
 		return err
 	}
 	isNew := !ev.Exists()
+	tmplName := command.FlagValue[string](args, "template")
+	if tmplName != "" && !isNew {
+		return fmt.Errorf("%s already exists, a template only applies to a new event", ev.Name)
+	}
+
+	var appliedTemplate *template.Template
+	if isNew {
+		appliedTemplate, err = c.resolveEventTemplate(tmplName)
+		if err != nil {
+			return err
+		}
+		if appliedTemplate != nil {
+			if err := appliedTemplate.CopyTo(ev.Path, template.Data{Event: ev.Name}); err != nil {
+				return fmt.Errorf("copy event template %s: %w", appliedTemplate.Name, err)
+			}
+		}
+	}
 	if err := ev.Create(); err != nil {
 		return err
 	}
@@ -104,6 +125,9 @@ func (c *cli) runEvent(ctx *command.Context, args command.ValidatedArgs) error {
 	}
 
 	c.State.Event = ev.Name
+	if appliedTemplate != nil {
+		ui.Successf("scaffolded %s from template %s", ui.Bold(ev.Name), appliedTemplate.Name)
+	}
 	var details []string
 	if ev.Platform != nil {
 		details = append(details, platformLabel(ev.Platform))

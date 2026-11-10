@@ -56,3 +56,15 @@ func (c *cli) completeTemplates(*command.Context, command.ValidatedArgs, string)
 	}
 	return names
 }
+
+func (c *cli) completeEventTemplates(*command.Context, command.ValidatedArgs, string) []string {
+	templates, err := template.ListEvent(c.Layout())
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, t := range templates {
+		names = append(names, t.Name)
+	}
+	return names
+}

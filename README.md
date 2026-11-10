@@ -74,6 +74,7 @@ The token is made in CTFd under **Settings → Access Tokens**. If an instance d
 | `ctf event` | Show the current event and its progress. |
 | `ctf event <name>` | Set the current event. |
 | `ctf event <name> --ctfd <url>` | Set the current event and link it to a CTFd instance. `--insecure` allows `http`. |
+| `ctf event <name> -t <template>` | Scaffold a new event's folder from an event template. |
 | `ctf event --unlink` | Remove the current event's CTFd link. Also works with a name. |
 | `ctf event --flag-format <regex>` | Set the flag format, checked by `submit` and `flag`. `--no-flag-format` removes it. |
 | `ctf event -c` | Clear the current event. |
@@ -102,7 +103,7 @@ The token is made in CTFd under **Settings → Access Tokens**. If an instance d
 | `ctf open` | Open the current challenge in the `editor` setting, or `$EDITOR`. |
 | `ctf open -w` | Open the challenge's page on the CTFd site in the browser. |
 | `ctf last` | Print the path of the last created challenge. |
-| `ctf templates` | List templates and which ones override others. |
+| `ctf templates` | List challenge and event templates, and which ones override others. |
 | `ctf config list` | Show the settings in use and where each comes from: `default`, `global` or the event. |
 | `ctf config get <key>` | Print the setting in use. `--event` prints the current event's own value. |
 | `ctf config set <key> <value>` | Change a setting. `--event` (`-e`) changes it for the current event only. |
@@ -211,12 +212,16 @@ A template is a folder copied into every new challenge.
 
 ```
 ~/ctf/
-├── templates/          global templates
+├── templates/          global challenge templates
 │   └── default/        used when no -t is given (the defaultTemplate setting)
 │       ├── dist/
 │       └── solve.py.tmpl
+├── event-templates/    scaffolds applied to an event's own folder
+│   └── default/        used when an event is created (the defaultEventTemplate setting)
+│       ├── flake.nix
+│       └── .envrc
 └── picoctf/
-    └── templates/      event templates, override global ones with the same name
+    └── templates/      challenge templates for one event, override global ones with the same name
 ```
 
 Files ending in `.tmpl` are rendered with Go [`text/template`](https://pkg.go.dev/text/template) and saved without the suffix. Everything else is copied as is.
@@ -240,6 +245,17 @@ The connection comes from `ctf new <name> --remote <connection>`, which accepts 
 from pwn import *
 ```
 
+### Event templates
+
+Challenge templates are copied into every new challenge; an **event template** is copied once onto the event's own folder when the event is created. It's the place for things shared across a whole event, like a pinned `flake.nix` and a `.envrc`, so every challenge can inherit one toolchain and the event commits a single `flake.lock`.
+
+Event templates live in `~/ctf/event-templates/<name>/`. The `default` one is applied by `ctf event <name>` when the event is new (the `defaultEventTemplate` setting); `ctf event <name> -t <name>` picks another. Only `{{.Event}}` is available in `.tmpl` files, since there's no challenge yet. Nothing is applied when the event already exists, and, like `defaultTemplate`, a missing `default` is not an error.
+
+```sh
+ctf event nightfall                 # applies event-templates/default
+ctf event nightfall-re -t pwn       # applies event-templates/pwn
+```
+
 ## Configuration
 
 | Key | Default | |
@@ -248,6 +264,7 @@ from pwn import *
 | `downloadDir` | `~/Downloads` | Where `grab` looks for files |
 | `editor` | empty | Command `ctf open` runs, e.g. `code` or `nvim`. Empty uses `$EDITOR` |
 | `defaultTemplate` | `default` | Template for `new` and `pull` when no `-t` is given. Only `default` may be missing |
+| `defaultEventTemplate` | `default` | Event template applied when an event is created. Only `default` may be missing |
 | `readmeName` | `README.md` | File `pull` writes the challenge description to. Per event |
 | `filesDir` | `dist` | Folder in a challenge that `grab` and `pull` put files into. Per event |
 

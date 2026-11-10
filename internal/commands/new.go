@@ -79,3 +79,23 @@ func (c *cli) resolveTemplate(name string) (*template.Template, error) {
 	}
 	return tmpl, err
 }
+
+// resolveEventTemplate finds the named event template. With no name it falls
+// back to the defaultEventTemplate setting, returning nil without error when
+// that is the built-in default and no such event template exists.
+func (c *cli) resolveEventTemplate(name string) (*template.Template, error) {
+	l := c.Layout()
+	if name != "" {
+		return template.FindEvent(l, name)
+	}
+
+	name = c.Config.DefaultEventTemplate
+	if name == "" {
+		return nil, nil
+	}
+	tmpl, err := template.FindEvent(l, name)
+	if errors.Is(err, template.ErrNotFound) && name == template.Default {
+		return nil, nil
+	}
+	return tmpl, err
+}

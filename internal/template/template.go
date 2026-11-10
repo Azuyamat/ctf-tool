@@ -146,3 +146,47 @@ func execute(w io.Writer, name string, content []byte, data Data) error {
 	}
 	return tmpl.Execute(w, data)
 }
+
+// FindEvent locates an event template by name under the global event-templates
+// directory. Event templates scaffold an event's own folder when it is created;
+// they have no per-event override, so the lookup is global only.
+func FindEvent(l layout.Layout, name string) (*Template, error) {
+	if !fsutil.ValidName(name) {
+		return nil, fmt.Errorf("invalid template name: %s", name)
+	}
+	path := filepath.Join(l.GlobalEventTemplatesDir(), name)
+	info, err := os.Stat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, name)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, name)
+	}
+	return &Template{Name: name, Path: path, Scope: ScopeGlobal}, nil
+}
+
+// ListEvent returns the event templates in the global event-templates directory.
+func ListEvent(l layout.Layout) ([]Template, error) {
+	entries, err := os.ReadDir(l.GlobalEventTemplatesDir())
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var templates []Template
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		templates = append(templates, Template{
+			Name:  entry.Name(),
+			Path:  filepath.Join(l.GlobalEventTemplatesDir(), entry.Name()),
+			Scope: ScopeGlobal,
+		})
+	}
+	return templates, nil
+}

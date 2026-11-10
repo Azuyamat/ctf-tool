@@ -20,7 +20,12 @@ func (c *cli) runTemplates(ctx *command.Context, args command.ValidatedArgs) err
 		return err
 	}
 
-	if len(templates) == 0 {
+	eventTemplates, err := template.ListEvent(l)
+	if err != nil {
+		return err
+	}
+
+	if len(templates) == 0 && len(eventTemplates) == 0 {
 		ui.Notef("no templates found")
 		return nil
 	}
@@ -38,7 +43,17 @@ func (c *cli) runTemplates(ctx *command.Context, args command.ValidatedArgs) err
 		root.Child(eventTree)
 	}
 
-	ui.Println(root)
+	if len(templates) > 0 {
+		ui.Println(root)
+	}
+
+	if len(eventTemplates) > 0 {
+		events := c.scopeTree(l.GlobalEventTemplatesDir(), "event scaffold")
+		for _, t := range eventTemplates {
+			events.Child(t.Name)
+		}
+		ui.Println(events)
+	}
 	return nil
 }
 

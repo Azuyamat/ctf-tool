@@ -21,6 +21,7 @@ func Root(a *app.App) *command.RootCommand {
 		HelpFunc(ui.Help(a.Version)).
 		AddChild(c.cmdEvent()).
 		AddChild(c.cmdPull()).
+		AddChild(c.cmdClone()).
 		AddChild(c.cmdLogin()).
 		AddChild(c.cmdLogout()).
 		AddChild(c.cmdNew()).
